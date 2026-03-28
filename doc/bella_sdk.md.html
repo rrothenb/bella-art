@@ -1,0 +1,968 @@
+<meta charset="utf-8" emacsmode="-*- markdown -*-">
+<link rel="stylesheet" href="https://casual-effects.com/markdeep/latest/apidoc.css?">
+<head>
+    <style>
+        xbody {
+            background-color: #222 !important;
+            color: #ddd !important;
+        }
+        xa, h1, h2, h3, h4, h5, h6 {
+            color: #ccc !important;
+        }
+        xpre {
+            background-color: #eee;
+        }
+        ul, ol {
+            margin: 2em 1.5em 2em -0.5em;
+        }
+        li {
+            margin-bottom: 1em;
+            font-size: 96%;
+        }
+        pre {
+            margin: 2.5em 0 !important;
+            padding: 2em !important;
+            overflow: auto;
+            box-sizing: border-box;
+            font-size: 90% !important;
+        }
+        #md {
+            margin: 1.5em auto !important;
+            padding: 0 3em !important;
+            max-width: 40em !important;
+        }
+        .mediumTOC {
+            position: fixed !important;
+            left: 0 !important;
+            padding: 2.5em 0 0 1.5em !important;
+            overflow: hidden !important;
+            width: calc(calc(100vw - 45em) / 2);
+        }
+        .tocTop {
+            font-size: 0.8em !important;
+        }
+        .diagram {
+            xbackground: #2222220a;
+            xborder-radius: 0.5em;
+            xwidth: 100%;
+            xtext-align: center !important;
+            xmargin: 1em auto !important;
+        }
+    </style>
+</head>
+
+<a href="https://bellarender.com" style="float:right; height:0; margin-right: 0.5em;">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" height="22" viewBox="0 0 171.20 64.00">
+    <g>
+		<path fill="#0068B4" fill-opacity="1" fill-rule="evenodd" stroke-width="0.2" stroke-linejoin="round" d="M 28.0952,24.3799C 31.1294,24.7109 33.8472,26.0581 35.8914,28.0664C 38.2607,30.3999 39.7275,33.6221 39.7275,37.1792C 39.7275,40.7363 38.2607,43.959 35.8953,46.292C 33.5259,48.6245 30.2527,50.0654 26.6362,50.0654C 23.0225,50.0654 19.7505,48.6245 17.3804,46.292C 15.0107,43.959 13.5488,40.7363 13.5488,37.1792C 13.5488,33.6182 15.0107,30.396 17.3804,28.0635C 19.7505,25.7339 23.0225,24.39 26.6362,24.39L 28.0962,24.3799M 13.5449,0.0112305L 43.0576,0.0112305L 43.2271,21.7749C 39.5427,17.7119 34.0251,15.0098 26.6362,15.0098C 21.6699,15.0098 17.449,16.417 13.5449,19.4785M 4.12256,0.0112305L 0,0.0112305L 0,38.1875C 0,52.3862 11.7986,64 26.2163,64L 43.2271,64L 43.2646,52.376C 39.5688,56.5693 34.0396,59.3745 26.7195,59.3745C 22.4595,59.3745 18.3477,58.1504 14.8259,55.9956C 11.2917,53.834 8.35522,50.7422 6.45801,47.0098C 4.97266,44.0889 4.12256,40.7588 4.12256,37.1611"/>
+		<path fill="#C5C5C5" fill-opacity="1" fill-rule="evenodd" stroke-width="0.2" stroke-linejoin="round" d="M 54.2246,36.7959C 54.2896,34.6934 54.8447,32.7695 55.7588,31.0918C 56.9307,28.9487 58.6885,27.2109 60.7666,26.0273C 62.8501,24.8447 65.2568,24.3158 67.7251,24.39C 69.6641,24.3457 71.6328,24.8369 73.5068,25.8262L 75.3926,27.2783L 54.4558,39.2104M 148.685,24.3125C 152.299,24.3125 155.57,25.7559 157.941,28.0889C 160.31,30.4229 161.777,33.644 161.777,37.2021L 161.694,38.5371L 161.694,38.5371C 161.379,41.5664 160.005,44.2822 157.941,46.314C 155.899,48.3237 153.183,49.6709 150.144,50.0015L 150.144,50.0908L 148.685,50.0908C 145.072,50.0908 141.799,48.6465 139.43,46.314C 137.06,43.9814 135.594,40.7627 135.594,37.2021C 135.594,33.644 137.06,30.4229 139.43,28.0889C 141.795,25.7559 145.068,24.3125 148.685,24.3125 Z M 148.685,15.0361C 145.627,15.0361 142.717,15.6309 140.068,16.7104C 137.324,17.8311 134.846,19.4785 132.766,21.5293C 129.569,24.6729 127.475,28.6582 126.614,32.8745C 125.756,37.0869 126.123,41.5327 127.842,45.6226C 128.05,46.1128 128.254,46.5381 128.458,46.9131C 128.662,47.293 128.882,47.6426 129.104,47.9736L 130.461,49.875C 129.664,50.1846 128.771,50.292 127.759,50.1948C 124.325,49.8643 121.063,48.3418 118.802,46.0054C 116.595,43.7241 115.25,40.6768 115.25,37.2021L 115.25,0L 105.824,0L 105.824,37.2021C 105.824,39.3115 106.043,41.1084 106.519,42.8018C 106.999,44.5137 107.744,46.1538 108.787,47.9365L 109.951,49.9092C 109.207,50.0615 108.375,50.1094 107.487,50.0796C 104.025,49.9795 100.892,48.4722 98.624,46.1436C 96.3379,43.7949 94.9246,40.6172 94.9246,37.2021L 94.9246,0.0112305L 85.5029,0.0112305L 85.5029,23.7959C 84.3237,22.4102 82.373,20.5693 80.8086,19.4155C 75.8347,15.75 69.8032,14.437 64.0854,15.248C 58.375,16.0625 52.9812,18.998 49.2896,23.8433C 48.405,25.0859 47.626,26.374 46.9878,27.7139C 49.4636,33.5776 49.4363,40.5283 46.9683,46.4229L 46.9683,46.9873L 49.2935,50.4961C 52.7017,54.9761 57.5547,57.8452 62.7849,58.8979C 68.0232,59.9473 73.6394,59.1772 78.5718,56.376C 81.8218,54.5254 84.9697,51.4526 86.9802,47.9766L 78.8203,43.3667C 76.7915,47.207 72.9517,49.1714 70.3093,49.7158C 65.8618,50.7383 61.3945,49.1641 59.2324,47.1846L 85.4912,32.2344L 85.4912,34.7158C 85.4912,37.4951 85.6201,39.9033 86.1079,42.1948C 86.5798,44.4199 87.3926,46.5596 88.7683,48.8784L 88.7944,48.9155C 90.1816,50.7422 91.4473,52.2788 92.8687,53.5957C 94.2783,54.9019 95.8689,56.0225 97.9324,57.042C 101.047,58.5781 104.286,59.3335 107.536,59.3784C 110.907,59.4229 114.304,58.7007 117.593,57.2832L 118.175,57.0342L 118.757,57.2832C 121.89,58.6304 125.314,59.3818 128.712,59.3818C 131.86,59.3818 134.993,58.7339 137.854,57.3125L 138.466,57.0117L 139.089,57.2793C 140.699,57.9722 142.233,58.4961 143.795,58.8457C 145.34,59.1924 146.936,59.3667 148.685,59.3667C 150.802,59.3667 152.566,59.1143 154.279,58.6563C 157.233,57.8672 159.29,56.9521 161.777,55.2813L 161.777,59.3667L 171.199,59.3667L 171.199,37.2197C 171.199,31.085 168.681,25.5366 164.607,21.5215C 160.541,17.5146 154.914,15.0361 148.685,15.0361 Z "/>
+	</g>
+</svg>
+</a>
+
+
+
+
+<!-- Overview-->
+
+## Bella SDK
+
+If you are familiar with Bella then you know it is based on a nodal scene. This document will explain some of the techincal aspects involved in that, and how to deal with them in the context of our SDKs, of which there are three, each fit for a different purpose:
+
+- The Node SDK. This lightweight SDK is provided for those who wish to implement their own Bella nodes (e.g. procedural textures).
+- The Scene SDK. This includes the capabilities of the Node SDK along with our implementations of the Bella Scene, Node, and so forth. It is primarily intended for use in reading or writing Bella files.
+- The Engine SDK. This includes the capabilities of the Scene SDK, and adds the ability to implement Bella rendering in your own application or IPR render window.
+
+This document is not intended to be a complete method-by-method reference (for this, see the headers). It rather provides a fairly high-level overview of the system and how it works. If you have any questions, we are always available to chat on [our Discord server](https://discord.gg/DqCAvAXH6C).
+
+
+
+
+<!-- 10k foot view -->
+
+### 10,000 Foot View
+
+A *Scene* is a container of *Nodes*; it has a list of node definitions, and a list of nodes. The only difference between a node and a node definition is that a definition is stored in the definitions list, and is used as a template for creating instances of itself for use as nodes in the scene. Nodes may be defined in code, but are more commonly and conveniently defined using a BND (Bella Node Definition) file.
+
+A *Node* is a container of attributes, *Input* and *Output*. An input may be seen as a property of the node; it has a name and a (we say immediate) value, but it may also be connected to an output from another node. As such, when we ask an input for its value, we can choose to have it tell us its immediate value, or to ask its connected output to produce a value. As such, nodes are arranged into a dependency graph.
+
+When an input asks its connected output to produce a value, the output will need to consult the inputs of its parent node to provide values for its computation, and those inputs may in turn ask other outputs to produce values, and so on, and so forth.
+
+A node that has no outputs is therefore just a container for data, while a node that *does* have outputs must have some executable logic associated with it, to compute its output values when requested. To accomplish this, nodes with outputs include a shared library with functions that are loaded by the system when the node definition is loaded.
+
+Just as nodes contains inputs, inputs may also contain inputs. An input may be a scalar value, a buffer of data, an array of inputs, an *object* made up of named child inputs, or an array of such *objects*. We may iterate over the inputs or ouptuts of a node, and over the child inputs of an input.
+
+So far, we have said nothing here that makes this system specific to rendering, and indeed it is not -- you could use this SDK for some purpose completely unrelated to rendering.
+
+What makes it rendering-centric as implemented in our SDKs is mainly that the scene has various methods that help in dealing with various well-known nodes that are expected to be found in a Bella scene. Things like the *settings* node, along with the *camera*, *environment*, and *beautyPass* nodes it references, which determine how the scene will be rendered.
+
+The scene also designates a particular *xform* node as the current *world* xform. As an xform has a *children* input array, elements of which may reference geometry or other xforms, this produces a hierarchy with the world at the top, and it is this hierarchy that determines what will be seen in the rendered scene. There is no restriction on the nesting of xforms, except that it is not allowed to create cycles; in other words, it is possible to instance entire sub-hierarchies.
+
+Bella's native coordinate system is right-handed z-up with 1 unit = 1 meter. The world xform is used to transform the scene globally when translating from a host application that uses a different convention or scale factor, with geometry values (mesh points, etc) being written verbatim as given by the host application.
+
+Finally, we have the *Engine*, which refers to a scene and provides methods to control rendering of it. The engine observes the scene, processing changes as they are made, and handles resolving those changes and keeping the render core up to date.
+
+The engine API is quite compact, and your main interaction with it is to start/stop the engine and receive messages and image updates from it. You change values in the scene, just the same as you would do if there were no engine, and the engine handles observing and responding to those changes.
+
+The main difference in editing a scene that is being rendered, is that you will want to batch bulk changes to the scene when possible, enclosing them in a begin/end updates region. This works the same whether or not the scene is being rendered, so the same code will work in either case.
+
+
+
+
+<!-- Structure-->
+
+## SDK Structure
+
+The SDKs have a common file structure:
+
+*********************************
+*
+* bella_scene_sdk/
+*   |
+*   +-- console.vcxproj
+*   +-- main.cpp
+*   +-- makefile
+*   +-- version.txt
+*   |
+*   +--doc/
+*   |   |
+*   |   +-- bella_sdk.md.html
+*   |   +-- thirdparty.md
+*   |
+*   +--lib/
+*   |   |
+*   |   +-- bella_scene_sdk.lib
+*   |
+*   +--src/
+*       |
+*       +--bella_sdk/
+*       |   |
+*       |   +-- bella_sceneapi.h
+*       |   +-- bella_scene.h
+*       |   +-- etc.
+*       |
+*       +--dl_core/
+*           |
+*           +-- dl_defines.h
+*           +-- dl_platform.h
+*           +-- dl_string.h
+*           +-- etc.
+*********************************
+[Figure [diagram]: Bella Scene SDK file structure.]
+
+`#includes` are written such that you should add the `src` directory to your include paths, add the `lib` directory to library search paths, and add the single SDK library to your linked libraries.
+
+The `dl_defines.h` and `dl_platform.h` files take care of detecting compiler, platform, etc, without needing to set any special defines on the build command line.
+
+You will find a *main.cpp* example file in each SDK, along with .vcxproj for building with Visual Studio on Windows, and makefile for building with gcc/clang on Linux and MacOS. They may be built like this:
+
+```bash
+# On Windows, decompress the SDK somewhere on your disk, open a Visual Studio
+# (2017 or higher) developer cmd prompt, and build the .vcxproj with msbuild:
+
+$> cd c:\projects\bella_engine_sdk-24.3.0
+$> msbuild -p:Configuration=Release;Platform=x64
+$> .\x64\Release\console.exe -h
+
+# On Linux, decompress the SDK somewhere on your disk, cd to the location, and run
+make (assuming you have gcc on your path):
+
+$> cd ~/projects/bella_engine_sdk-24.3.0
+$> make
+$> ./bin/Linux/console -h
+
+# On MacOS, decompress the SDK somewhere on your disk, cd to the location, and run
+# make (assuming you have XCode command line tools installed):
+
+$> cd ~/projects/bella_engine_sdk-24.3.0
+$> make
+$> ./bin/Darwin/console -h
+
+```
+
+The examples build a "console" application that accepts various arguments, given by `-h`.
+
+Note that since the Node SDK library contains no implementation of the Scene API, it includes the *bella_scene.cpp* and *api.cpp* files in the *src/bella_sdk* dir, which must be compiled, and which will provide the Node SDK's empty implementation (more on this below).
+
+
+
+
+<!-- Node SDK-->
+
+## The Node SDK
+
+!!! NOTE
+    The Node SDK is not yet supported at runtime, and is included for completeness and context. We have a few decisions yet to make before we commit to supporting public use.
+
+The Node SDK is a minimal SDK containing only what is necessary to implement third-party nodes in Bella. Nodes live in a package that consists of a .bnd (*Bella Node Definition*) file with an accompanying dynamic library that provides functions to be loaded and called by Bella at runtime.
+
+Since even this limited usage involves various types and capabilities, the SDK includes the Diffuse Logic `dl_core` library, which provides typical collection, string, file, and other such classes. Being cross-platform and literally the same code we use in every Bella build, this is well-tested code that can save you considerable time.
+
+
+### The BND Format
+
+Though nodes can be defined through code, it is more convenient to use Bella's .bnd format, which is really just a slightly augmented (i.e. it supports comments) flavor of json:
+
+```json
+"node": {
+    "abstract": true,
+    "inputs": {
+        "name": {
+            "type": "string",
+            "label": { "en": "Name", "es": "Nombre" },
+            "help": { "en": "A user-specified name for this node" }
+        }
+    },
+    "help": { "en": "Node is the 'base' node type." }
+},
+"geometry": {
+    "abstract": true,
+    "inputs": {
+        "modifiers": {
+            "type": "node[]",
+            "accepts": [ "modifier" ]
+        }
+    }
+},
+"procedural": {
+    "abstract": true,
+    "bases": [ "geometry" ]
+},
+"disk": {
+    "bases": [ "procedural" ],
+    "inputs": {
+        "radius": {
+            "type": "real",
+            "value": 0.5,
+            "minex": 0,
+            "max": 1e11,
+            "smax": 10,
+            "step": 0.01,
+            "prec": 5,
+            "help": { "en": "The radius of the generated disk." }
+        }
+        // QUESTION: add a 'flip' bool?
+    },
+    "layout": [ "radius" ],
+    "help": { "en": "A procedurally-generated disk." }
+}
+```
+[Figure [diagram]: The Bella Node Definition (.bnd) format.]
+
+The (abridged) node definitions shown here are part of Bella's own embedded default definitions. As shown, it is possible for nodes to inherit (multiple) other nodes. The main parts of the definition are the *inputs* and *outputs*, along with the *layout*, which describes how the node should be laid out in a GUI. For a concrete example of how GUI may be automatically generated using a node layout, see the *main.cpp* example in the Scene SDK.
+
+In some cases, a definition will be inherited to gain its inputs, while in others, as seen above with the *procedural* type, the base type exists mainly to classify nodes and allow dealing with them in a generic way, mainly through use of the node's `isTypeOf` method.
+
+Just as a node has inputs, an input may also have child inputs, in which case the `type` of the parent input may be `object` or `object[]`, producing a sub-object or an array of sub-objects, respectively. An input may also be an array of type `string[]` or `node[]` or other scalars, or a buffer of primitive data types like `vec3f[]`.
+
+```json
+"mesh": {
+    "bases": [ "geometry" ],
+    "inputs": {
+        "polygons": {
+            "type": "vec4u[]",
+            "help": { "en": "Buffer of uint[a,b,c,d] polygon indices used for mixed triangle/quad meshes. When poly.c != poly.d, the polygon is interpreted as a quad." }
+        },
+        "channels": {
+            "type": "string[]",
+            "help": { "en": "An array of UV channel names associated with this mesh. The number of channels indicates the number of UV channels, and the name for a given channel may be empty." }
+        },
+        "steps": {
+            "type": "object[]",
+            "inputs": {
+                "time": {
+                    "type": "real",
+                    "value": 0,
+                    "help": { "en": "Time value (in the range [0,1]) for this motion blur step." }
+                },
+                "points": {
+                    "type": "pos3f[]",
+                    "help": { "en": "Points (vertexes) for this motion blur step." }
+                },
+                "normals": {
+                    "type": "vec3f[]",
+                    "help": { "en": "Optional normals for this motion blur step." }
+                },
+                "uvs": {
+                    "type": "vec2f[]",
+                    "help": { "en": "Optional UV coords (interleaved by UV channel) for this motion blur step." }
+                },
+                "tangents": {
+                    "type": "vec4f[]",
+                    "help": { "en": "Optional tangents (interleaved by UV channel) for this motion blur step." }
+                }
+            },
+            "help": { "en": "The array of motion blur steps for this mesh. Each step may contain different points, normals, and UVs." }
+        }
+    }
+}
+```
+[Figure [diagram]: A simplified portion of the mesh node definition.]
+
+Here we see that the *mesh* node has a single `vec4u` buffer, where each element defines the indexes of a polygon. It then has a `string[]` of mesh *channels* which are used to define named sets of UV coordinates. Finally it has a *steps* `object[]`, where each element has a *time* value, along with *points*, *normals*, *uvs*, and *tangents* buffers.
+
+This is the complete list of attribute data types:
+
+```c++
+enum AttrType
+{
+    AttrType_Null,
+
+    // Primitives
+    //
+    AttrType_Bool,      // "bool"   data: bool
+    AttrType_Int,       // "int"    data: int64_t
+    AttrType_UInt,      // "uint"   data: uint64_t
+    AttrType_Real,      // "real"   data: double
+    AttrType_Vec2,      // "vec2"   data: 2 doubles
+    AttrType_Vec3,      // "vec3"   data: 3 doubles
+    AttrType_Vec4,      // "vec4"   data: 4 doubles
+    AttrType_Pos2,      // "pos2"   data: 2 doubles
+    AttrType_Pos3,      // "pos3"   data: 3 doubles
+    AttrType_Quat,      // "quat"   data: 4 doubles
+    AttrType_Rgba,      // "rgba"   data: 4 doubles
+    AttrType_Mat3,      // "mat3"   data: 9 doubles
+    AttrType_Mat4,      // "mat4"   data: 16 doubles
+
+    // References
+    //
+    AttrType_String,    // "string"
+    AttrType_Node,      // "node", a link to a Node
+
+    // Buffers
+    //
+    AttrType_Buffer,    // "vec4f[]", "mat3f[]", "pos2f[]", etc.
+
+    // Arrays/Composites
+    //
+    AttrType_Array,     // "string[]", "node[]", "object[]"
+    AttrType_Object     // "object", basically an array of Inputs
+}
+```
+
+The types supported for `AttrType_Buffer` are the same supported in .bsa, being any of the `dl::DataType` types declared in `dl_types.h`.
+
+### Node Implementation
+
+Though a node definition may consist of input data only, things begin to get interesting once the node has outputs, along with a node *implementation* to compute their values when *evaluation* of an output is requested.
+
+A node implementation consists of several specially-named functions in a dynamic library, which is loaded by Bella, and the functions located and stored in the node definition, for use when the node is asked to evaluate one of its inputs. The basic set of these functions are `Init`, `Prep`, `Eval`, and `Free`, as shown below for the very simple Bella *color* node:
+
+```c++
+#undef DL_NODE_ATTRS
+#define DL_NODE_ATTRS(X) \
+    X(I, Rgba, color) \
+    X(I, Real, variation)
+
+struct Color
+{
+    Texture texture;
+    #include "_makeattrs.inl"
+    bool varying = false;
+};
+
+DL_C_EXPORT bool colorInit(const INode* inode, void** data)
+{
+    DL_INIT_BASEINFO(Color, texture)
+    #include "_initattrs.inl"
+    return true;
+}
+
+DL_C_EXPORT bool colorPrep(const INode* inode, void* data)
+{
+    DL_PREP_BASEINFO(Color, texture)
+    #include "_prepattrs.inl"
+    info->varying = !zerolike(info->variation.eval());
+    return true;
+}
+
+DL_C_EXPORT bool colorEval(EvalCtx* ctx, void* output)
+{
+    DL_EVAL_NODEINFO(Color)
+    DL_EVAL_IINFO(color); // No 3D eval for plain color.
+
+    if (info->varying)
+    {
+        DL_EVAL_IINFO(variation);
+        varyRgba(ctx->hash(), color, variation);
+    }
+
+    return textureOut(ctx, output, info->texture, color);
+}
+
+DL_C_EXPORT bool colorFree(const INode* inode, void** data)
+{
+    DL_FREE_NODEINFO(Color)
+}
+```
+[Figure [diagram]: Implementation of the Bella color node.]
+
+We can see here that there is a naming convention used, which is simply the node type name with `Init/Prep/Eval/Free` appended. It will therefore be recommended to choose a unique prefix for your own node library to use in naming its nodes. For the time being we will assume users capable of being good citizens, but if necessary at some point, some sort of registration model can be added.
+
+We will not go into all the details here, but you can see that the implementation of the *color* node defers to its abstract *texture* base at some points, and otherwise provides its own logic, and that much of this is handled by various macros.
+
+In addition to the per-node functions shown above, there are also functions available to be called when your node library (you may define several nodes in a single library) is loaded and freed, in case you need to set up and tear down global state for the entire library.
+
+
+
+
+<!-- Scene SDK-->
+
+## The Scene SDK
+
+Where the Node SDK omits any actual implementation of the `Scene`, `Node`, and other related classes, the Scene SDK contains implementations of these, allowing to create a scene on your own and use it, usually for the purpose of reading and writing Bella files.
+
+
+### API Design
+
+Bella's Scene API is based on the use of hidden-implementation refcounted classes representing a scene, the nodes it contains, the inputs and outputs of those nodes, and other related concepts. The scene's list of nodes therefore comprises a dependency graph of nodes connected to one another by their inputs and outputs. The implementation ensures that cycles are not allowed to be created.
+
+A node is conceptually a container of *attributes*, of which there are *inputs* and *outputs*. An input has an *immediate* value, which will be returned when requested, unless it has been connected to an output from another node, in which case that output may be *evaluated* to obtain a result, instead of using the input's immediate value. Here is how that looks in practice:
+
+```c++
+// Create a checker node and set the value of one of its inputs:
+//
+auto checker = scene.createNode("checker");
+checker["color1"] = Rgba { 1.0, 0.0, 0.0, 1.0 };
+logInfo("color1: %s", String::format(checker["color1"].asRgba()).buf());
+
+// Create a grid and connect our checker's color1 input to the outColor output
+// of the grid (the |= operator is shorthand for Input::connect):
+//
+auto grid = scene.createNode("grid");
+checker["color1"] |= grid.output("outColor");
+
+// Here, we will query the color1 value; if we call asRgba(true), this will
+// tell the node we want it to evaluate its connected output, while if we call
+// asRgba(false), it will return its immediate value.
+//
+logInfo("color1 immediate value: %s",
+    String::format(checker["color1"].asRgba(false)).buf()
+    );
+logInfo("color1 evaluated value: %s",
+    String::format(checker["color1"].asRgba(true)).buf()
+    );
+```
+
+This produces the following arrangement:
+
+************************************************
+*
+* +------------------+     +------------------+
+* |       grid       |     |      checker     |
+* +------------------+     +------------------+
+* o uvCoord          |     o uvCoord          |
+* +------------------+     +------------------+
+* o color            |   .-o color1 (1,0,0,1) |
+* +------------------+  |  +------------------+
+* o background       |  |  o color2           |
+* +------------------+  |  +------------------+
+* |         outColor o-'   |         outColor o
+* +------------------+     +------------------+
+************************************************
+[Figure [diagram]: Connecting inputs to outputs.]
+
+Of course when the checker evaluates the grid's outColor, the grid may in turn need to evaluate outputs connected to its own inputs in order to compute the value, and so on, and so forth.
+
+The code is made clean and simple by the design of the types used in the system, each of which involves three classes:
+
+    1. An abstract interface, found in the *bella_sceneapi.h* file.
+    2. An implementation of this interface, contained in the SDK lib.
+    3. An SDK *wrapper* class that holds a pointer to the interface.
+
+A typical interface in this system looks like this:
+
+```c++
+// Not actually in bella_sceneapi.h, but similar to what you will find there:
+//
+namespace interfaces {
+class IItem : public IRefCounted
+{
+public:
+    virtual IItem* getNext() = 0;
+protected:
+    virtual ~IItem() = default;
+};
+} // interfaces
+```
+
+`IRefCounted` is an interface (from *dl_core/dl_references.h*) that declares `incRef()` and `decRef()` methods. Internally, the implementation will look something like this:
+
+```c++
+// Internal implementation (would not be included with the Node SDK):
+//
+namespace impl {
+class Item DL_FINAL : public IItem
+{
+    DL_IMPLEMENT_IREFCOUNTED
+public:
+    Item() { }
+    virtual ~Item() { }
+
+    void setNext(IItem* item) { _next = item; } // Only in the implementation.
+    IItem* getNext() override { return _next; }
+private:
+    IItem* _next = nullptr;
+};
+} // impl
+```
+
+This class uses the `DL_IMPLEMENT_IREFCOUNTED` macro to fulfill the `IRefCounted` contract. Which brings us to the SDK wrapper class, which will look like this:
+
+```c++
+// Not actually in bella_scene.h, but similar to what you will find there:
+//
+namespace bella_sdk {
+class Item DL_FINAL : public RefersTo&lt;IItem&gt;
+{
+public:
+    Item() = default;
+    Item(IItem* impl) : RefersTo(impl) { }
+
+    Item getNext() { return Item(impl() ? impl()->getNext() : nullptr); }
+};
+} // bella_sdk
+```
+
+While mirroring the methods of the interface, the wrapper is actually unrelated to it, which is why it is usable with no implementation in the Node SDK.
+
+The `RefersTo&lt;T&gt;` base implements refcounting on the wrapped `IItem*` such that it cannot die, as long the wrapper lives -- we never delete things in this system, rather they delete themselves when they are no longer referred to. There are tests built into the implementation which prove its correctness, such that even when wrapped for dotnet, with its non-deterministic GC and finalizer model, we neither leak objects nor ever access already-deleted instances.
+
+Since the wrapper is trivially-copyable, whenever it is copied, its `RefersTo&lt;T&gt;` base takes care of the refcount bookkeeping, ultimately deleting the instance once it can no longer be reached. For this reason, it is recommended always to pass wrappers by value, and thus ensure you can never have an instance deleted out from under you while you are using it.
+
+Note also how this enables optimistic use without clunky null checks, in this case by returning a valid `Item` wrapper regardless whether `impl()->getNext()` can be called. This is possible because the wrapper is designed to always be usable, and its methods always able to be called, regardless whether its internal `impl()` is null.
+
+This aspect really comes into its own once we add operators and begin chaining calls in a very succinct and natural way, at least as compared to typical c++:
+
+```c++
+// By saying optimistic, we mean that we are able to work with the types as
+// though they are valid regardless whether they actually are:
+//
+Node uber = scene.createNode("uber");
+Node tex = scene.createNode("fileTexture");
+uber["base"]["color"] |= tex.output("outColor");
+Real weightBefore = uber["base"]["weight"].asReal();
+uber["base"]["weight"] = 1.234;
+Real weightAfter = uber["base"]["weight"].asReal();
+printf("%f -> %f", weightBefore, weightAfter);
+
+// Without this model it would be necessary to check for null a minimum of
+// seven times, along with matching calls to incRef() and decRef(), in order
+// to accomplish the same result as this code. And what is done above in just
+// seven lines would take around fifty lines, with many opportunities to make
+// a mistake.
+
+```
+
+This is just a special case of the general wrapper pattern of returning a value from the implementation if we have one, and otherwise returning a default value, but this example in particular shows how calls to sub-objects may be safely chained.
+
+It is of course always possible to check whether a wrapper's implementation is null (`RefersTo&lt;T&gt;` implements `operator bool()` to make this natural), in the case that you do actually need to know that. `RefersTo&lt;T&gt;` implements equality of wrappers in terms of their interface pointers.
+
+So to get from here to the example code given at the beginning, we just have various operators added over `Node` and `Input` methods, to produce a c++ API that is expressive, easy to use, and safe by default.
+
+Lastly, it is worth mentioning how method arguments and return values are deliberately kept as simple as possible throughout this SDK to ease wrapping in other languages, where typical c++ use of out parameters and return of complex structures tends to complicate things.
+
+
+
+
+### Scene structure
+
+As mentioned above, a scene contains a list of nodes comprising a dependency graph. It also designates one of these nodes, of type *xform*, as the *world*, from which is built a directed acyclic graph comprised of the *world*, its children, their children, and so forth. Everything visible in a rendered scene is ultimately parented to the *world*.
+
+This is possible because the *xform* has a *children* attribute, which is a list of node references, each of which may be assigned some type of *geometry* (a base node type in the system) or another *xform*. That is to say, everything visible in a Bella scene is what may be termed an *instance*, and the system supports nested instances, or referencing any given instance at multiple places in the hierarchy. So conceptually we may have a structure like this:
+
+*********************
+*
+* world
+*   +
+*   +--camera_xform
+*   |   |
+*   |   +-- camera
+*   |
+*   +-- cube
+*   +-- sphere
+*   |
+*   +--xform1
+*   |   |
+*   |   +-- box
+*   |   +-- plane
+*   |
+*   +--xform2
+*       |
+*       +--xform1
+*           |
+*           +-- box
+*           +-- plane
+*********************
+[Figure [diagram]: All visible nodes are ultimately parented to the world.]
+
+Here, *cube* and *sphere* will be seen in world space as according to their physical geometry (meaning the actual numeric values contained in their vertexes/etc). *box* and *plane* will first be seen in the space defined by *xform1* (an xform has a 4x4 transformation matrix), and then again in the space of *xform1* within the space of *xform2*.
+
+The node implementation ensures that cycles cannot be created, neither by attempting to parent any xform indirectly to itself, nor by attempting to drive a node's input, directly or indirectly, by one of its outputs.
+
+
+
+### Well-known Nodes
+
+The scene contains a *global* node, which has a list of *state* attributes accepting references to *state* nodes, each of which has *world* and *settings* node reference attributes; through this mechanism it is possible to have several states stored in a file, though this feature has not yet been exposed in any user interface (and may be removed).
+
+In general it is enough to rely on the scene's *settings()*, *camera()*, and other related helper methods, which abstract this structure.
+
+The *world* xform is also made use of in translating models from host applications, each of which may have its own conventions for world space orientation, and for handling arbitrary scaling of the scene. By handling this through the world xform, we are able to handle the translation without modification of geometry.
+
+Meaning, with all scale values set to 1.0, all values (e.g. mesh points) in geomety will be interpreted as being in meters, and it is possible to render everything at a different apparent size by altering the scale values of the world xform's transform matrix (Bella's native coordinate system is right-handed z-up with 1 unit = 1 meter).
+
+This is done so as to always maintain source data verbatim as provided by the host application, and to allow referencing files written from different applications in the same scene, without physically altering what they contain. As opposed to other SDKs we have seen, where geometry is preemptively transformed into the renderer's coordinate system during translation.
+
+Also integral to a scene is its current *settings* node, which holds information on global default output directory and name, display color space, various global rendering and IPR settings, and node references that determine which *camera*, *environment*, and other such nodes to use in rendering.
+
+One important node the settings references is the current *beautyPass* node, which determines which solver to use, various settings for that solver, and where and how to render images. The settings node also has an *extraPasses* node list, holding reference to various optional *passes* such as *alpha*, *shadow*, *normal*, and other typical render passes.
+
+The scene may contain any number of *camera* nodes, but only one will be referenced by the settings, and it will be the first instance of this camera found in the hierarchy that is used to render the scene. The camera (and its related *sensor* and *lens*) define the conceptual camera, with its location and orientation being determined by the xform to which it is parented.
+
+
+
+### Using API Types
+
+Apart from the *Engine*, the *Scene* is the only class we create ourselves, and other types are always obtained directly or indirectly from the scene. A freshly-created scene will have zero node definitions, and so will be unable to create any useful nodes; for this reason, the first thing we do is to call `Scene::loadDefs()`:
+
+```c++
+// Create our scene and load node definitions.
+//
+Scene scene;
+scene.loadDefs();
+```
+
+At this point we have all of the default Bella node types, described in the [Node Definitions](https://bellarender.com/doc/nodes) document, which is also always available in the Bella GUI at *Help > Node Definitions*. This document shows the base types for nodes, the real names (as opposed to the "friendly" ones, available via *label()* on node, input, and output) of nodes, inputs, and outputs, as well as the default values for inputs. This document is automatically generated from the *bella_nodes.bnd* file that is embedded in the Scene library.
+
+As mentioned previously, node definitions are allowed to inherit other node definitions, which provides for concise traversal of nodes in the scene:
+
+```c++
+// Really we would just ask for disk nodes here, but this shows the behavior
+// of the Scene's nodes() method, as well as the node's isTypeOf().
+//
+for (auto node: scene.nodes("procedural"))
+    if (node.isTypeOf("disk"))
+        logInfo("Found a disk: %s", node.name().buf());
+```
+
+Naturally, if we reversed this and searched for all nodes of type *disk*, then *isTypeOf("procedural")* would return true for all of them.
+
+Nodes, inputs, and outputs have methods and operators for iterating and accessing their child inputs and values:
+
+```c++
+// We can iterate through the inputs of a node:
+//
+logInfo("These are the inputs of node %s:", node.name().buf());
+for (UInt i = 0; i < node.inputCount(); ++i)
+    logInfo("node[%d]: %s", (int)i, node[i].name().buf());
+
+// Iterating an input's child inputs is similar to iterating the node's inputs,
+// and in fact they both implement the IInputContainer interface. Naturally we
+// end up writing recursive functions to deal with this, and it becomes
+// possible to generate user interface algorithmically.
+//
+logInfo("These are its inputs to 2 levels:");
+for (UInt i = 0; i < node.inputCount(); ++i)
+for (UInt j = 0; j < node[i].inputCount(); ++j)
+    logInfo("node[%d][%d]: %s", (int)i, (int)j, node[i][j].path().buf());
+
+// We can also iterate the node's outputs, but there is only one level to deal
+// with here. Note that in the case of outputs, we cannot use the operator[]
+// and must write node.output(i) instead.
+//
+logInfo("And these are its outputs:");
+for (UInt i = 0; i < node.outputCount(); ++i)
+    logInfo("node.output(%d): %s", (int)i, node.output(i).name().buf());
+```
+
+Though it is not generally necessary, it is possible also to define nodes at runtime. For instance, in our Rhino plugin, it has been useful to create nodes from scratch, or ones slightly different to the official node definitions, and then transfer their values to official instances of nodes during translation/export. The simple and consistent interface makes such transfer trivial.
+
+
+### Observing the Scene
+
+The API also provides the *SceneObserver* class, which you can implement and then subscribe to the scene, to receive notification of events as they occur. A simple implementation might look like this:
+
+```c++
+struct MySceneObserver : public SceneObserver
+{
+    bool inEventGroup = false;
+
+    void onNodeAdded( Node node ) override
+    {
+        logInfo("%sNode added: %s",
+            inEventGroup ? "  " : "", node.name().buf()
+        );
+    }
+    void onNodeRemoved( Node node ) override
+    {
+        logInfo("%sNode removed: %s",
+            inEventGroup ? "  " : "", node.name().buf()
+        );
+    }
+    void onInputChanged( Input input ) override
+    {
+        logInfo("%sInput changed: %s",
+            inEventGroup ? "  " : "", input.path().buf()
+        );
+    }
+    void onInputConnected( Input input ) override
+    {
+        logInfo("%sInput connected: %s",
+            inEventGroup ? "  " : "", input.path().buf()
+        );
+    }
+    void onBeginEventGroup() override
+    {
+        inEventGroup = true;
+        logInfo("Event group begin.");
+    }
+    void onEndEventGroup() override
+    {
+        inEventGroup = false;
+        logInfo("Event group end.");
+    }
+};
+```
+
+Here is how this might be used:
+
+```c++
+// Create a scene, an observer, and subscribe the observer to the scene:
+//
+Scene scene.
+scene.loadDefs();
+
+MySceneObserver observer;
+scene.subscribe(&observer);
+
+// The observer will now receive notifications of nodes being created, inputs
+// being set and connected:
+//
+auto xform = scene.createNode("xform");
+auto pbr = scene.createNode("pbr");
+xform["material"] = pbr;
+
+// It is also possible to use event grouping to perform bulk changes; these
+// will all occur between onBeginEventGroup() and onEndEventGroup() calls in
+// the observer:
+//
+{
+    Scene::EventScope es(scene); // Created within a scope to auto-destruct.
+    auto box = scene.createNode("box");
+    box["sizeX"] = 10.0;
+    box["sizeY"] = 10.0;
+    box["sizeZ"] = 1.0;
+    box.parentTo(xform);
+}
+```
+
+Running this code would produce various messages being printed from the observer, as they occur in the scene. This is used to implement user interfaces, and by Bella itself, to implement interactivity of the render engine.
+
+
+
+
+<!-- Engine SDK-->
+
+## The Engine SDK
+
+For those implementing a custom pipeline, or plugin that needs to render in an IPR window, we provide the Engine SDK, which adds an Engine API to the Scene API discussed above.
+
+The engine has been designed to be as easy to use as possible, handling internally the details involved in managing the heavily multithreaded renderer. This means you do not have to specially arrange for updating data in the scene -- you just change data in the scene (add/remove nodes, set attributes, etc), the same as if there was no engine currently rendering it.
+
+The engine takes care of listening for any changes to the scene, stopping the renderer, updating its data, and starting it again. That said, be sure to see the Batching Updates section below, for important information on optimizing performance of updates.
+
+!!!WARN
+    This is not to say the engine or scene are *thread safe* -- you should not access them from mutliple threads unsynchronized.
+    
+    What it means is that you do not have to set up any threading system of your own. You just set values from your UI, and the calls do not block, being queued and processed automatically by the engine, which later calls your observer with a message or image to show.
+
+By default, an engine instance starts out with a scene that may be used.
+
+```c++
+// Create our engine and initialize its scene.
+//
+Engine engine;
+engine.scene().loadefs();
+
+// Now we are ready to begin rendering. Let's imagine this code runs in the
+// handler for a "load scene" button click.
+//
+if (!engine.scene().read("test.bsx"))
+    return false;
+
+// And imagine this runs in response to a "start rendering" button.
+//
+engine.start();
+
+// Now let's imagine a "stop" button elsewhere in the application.
+//
+engine.stop();
+
+// Between these two calls, the engine will be rendering, periodically sending
+// sending messages to any EngineObserver instances that have subscribed to it.
+// Any changes made to the scene will automatically be handled, with the engine
+// stopping and restarting as necessary.
+//
+auto scene = engine.scene();
+auto camera = scene.camera();
+camera["pinhole"] = true;
+camera["resolution"] = Vec2 { 800, 800 };
+
+// As we showed above, it is usually important to put bulk changes into event
+// groups, to avoid the engine restarting unnecessarily. More on this later.
+{
+    Scene::EventScope es(scene);
+    camera["lens"]["focusDist"] = 12.5;
+    camera["sensor"]["iso"] = 400.0;
+}
+```
+
+### Licensing
+
+Bella licensing is quite simple, and checking for a license is handled internally by the engine itself. Bella expects to find a license file at `$HOME/bella/bella.lic`, or at the path indicated by `$BELLA_LICENSE_PATH`. It is also possible to pass license text directly, using `$BELLA_LICENSE_TEXT`.
+
+You can learn whether and how the engine is licensed by calling the static `Engine::isLicensed()` and `Engine::licenseType()` methods, and you can get detailed license info to print in your GUI by using the `Engine::licenseInfo()` method. Installation of licenses is currently handled by Bella GUI, but we can add methods for this as well.
+
+Any time the engine is unable to find a valid license, it will run in *demo* mode, limiting resolution to 1080p (by area, 1920 x 1080 total pixels), and you can use the `bella_sdk::renderedResolution()` function to compute the actual resolution to expect from the engine, depending on license status. In demo mode, a small watermark will be superimposed on the image.
+
+Therefore, besides perhaps getting license info to print in your GUI, you do not need to think about it much, and your implementation will just work.
+
+
+### Observing the Engine
+
+Similar to the scene's `SceneObserver` the engine supports the `EngineObserver` class:
+
+```c++
+// EngineObserver is a class you inherit, overriding any methods you wish to
+// have called:
+//
+struct MyEngineObserver : public EngineObserver
+{
+    void onStarted(String pass) override
+    {
+        logInfo("Started pass %s", pass.buf());
+    }
+    void onStatus(String pass, String status) override
+    {
+        logInfo("%s [%s]", status.buf(), pass.buf());
+    }
+    void onProgress(String pass, Progress progress) override
+    {
+        logInfo("%s [%s]", progress.toString().buf(), pass.buf());
+    }
+    void onImage(String pass, Image image) override
+    {
+        logInfo("We got an image %d x %d.",
+            (int)image.width(), (int)image.height());
+    }
+    void onError(String pass, String msg) override
+    {
+        logError("%s [%s]", msg.buf(), pass.buf());
+    }
+    void onStopped(String pass) override
+    {
+        logInfo("Stopped %s", pass.buf());
+    }
+};
+```
+
+So rather than just start the engine, let's instead subscribe an instance of our engine observer:
+
+```c++
+Engine engine;
+engine.scene().loadDefs();
+
+MyEngineObserver engineObserver;
+engine.subscribe(engineObserver);
+
+engine.scene().read("test.bsx");
+engine.start();
+
+// Now, we will be notified in our observer when events occur in the engine.
+// This is the mechanism by which you show render progress and images in your
+// interface.
+```
+
+Note that the images given in the obeserver's `onImage` override will only be valid for the duration of the call, so you should never store any of their pointers.
+
+If your GUI framework does not lend itself to showing the image immediately (quite common, as you may need to marshal calls to the GUI thread, in an async manner), you will need to copy it to your own buffer, for use when you are able or requested to show it.
+
+There is not much more to it than that. Typically you will end up with a class in your application that has an engine as one of its fields, where the lifetime of this class is tied to that of an IPR window, and into which you push changes made by a user through your interface.
+
+!!!NOTE
+    Note that it is of course imprecise to say there are *no* threading consideratons, since observer calls will originate with the engine's update thread, and must be properly marshalled to the GUI thread, if running in a GUI.
+
+### Batching Updates
+
+Though the engine requires no special synchronization, it is still important to be aware that this makes it possible to produce errors by updating the scene in ways that would put scene objects into an incoherent state.
+
+For instance, a *mesh* has various different buffers, and we would not want to allow the engine to see a mesh while we are halfway through modifying it. So it is necessary, as already shown above, to batch such changes by using event groups:
+
+```c++
+// Create an event scope to update our mesh. At close of this scope, the engine
+// will process all changes that occurred within the event scope.
+//
+auto mesh = scene.findNode("my_mesh");
+if (mesh)
+{
+    Scene::EventScope es(scene);
+    mesh["polygons"]             = myNewPolygons;
+    mesh["steps"][0]["points"]   = myNewMeshPoints;
+    mesh["steps"][0]["normals"]  = myNewMeshNormals;
+    mesh["steps"][0]["uvs"]      = myNewMeshUVs
+    mesh["steps"][0]["tangents"] = myNewMeshTangentss
+}
+```
+Besides maintaining the scene in a sane state, this also improves performance as compared to applying changes one by one.
+
+It is also possible to call `scene.pushEventGroup()` and `scene.popEventGroup()` manually. Event groups are implemented as a stack, so you do not need to worry about whether you are already in a group -- when the final group is popped, the grouped changes will be applied by the engine.
+
+You call these on the scene, because the engine is itself an observer of its own scene -- it uses the `SceneObserver` exactly the same as you can use it in your own code.
+
+### UV Coordinates
+
+It bears some discussion how UVs are handled in this system. How this works is that the base `texture` node has a `uvCoord` input that may or may not be connected to something (usually a `texform`).
+
+When a texture's `uvCoord` is not connected to anything, the engine will connect it to an internal node that obtains UVs from the source geometry.
+
+In every other case, where an intervening node has been connected to a texture's `uvCoord`, the chain of connections will ultimately end at a texture with an unconnected `uvCoord`, and this will be connected by the engine to the internal UV source node.
+
+***********************************************************
+*
+*                  +---------------+
+*                  |    texform    |
+*                  +---------------+
+*                .-o uvCoord       |
+*               |  +---------------+
+*               |  o repeat        |
+*               |  +---------------+
+*  .--------.   |  o offset        |
+* |          |  |  +---------------+     +---------------+
+* |  object  o-'   |         outUV o-.   |    checker    |
+* |    uvs   o-.   +---------------+  |  +---------------+
+* |          |  |                      '-o uvCoord       |
+*  '--------'   |  +---------------+     +---------------+
+*               |  |     grid      |     o color1        |
+*               |  +---------------+     +---------------+
+*                '-o uvCoord       |   .-o color2        |
+*                  +---------------+  |  +---------------+
+*                  o color         |  |  |      outColor o
+*                  +---------------+  |  +---------------+ 
+*                  o background    |  |
+*                  +---------------+  |
+*                  |      outColor o-'
+*                  +---------------+
+***********************************************************
+[Figure [diagram]: How textures ultimately receive their UV coords.]
+
+There are two types of internal UV source node, one of which supports *named* UV sets, which is how we implement assignment of per-instance UVs.
+
+
+
+
+<br><br><br>
+<font size="2">Copyright &copy; 2024 Diffuse Logic, all rights reserved.</font>
+
+<style class="fallback">body{visibility:hidden}</style><script>markdeepOptions={tocStyle:'medium'};</script>
+<!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>

@@ -1,0 +1,9 @@
+*.png
+*.bsa
+*.bsx
+.DS_Store
+.idea/
+.qwen/
+bin/
+obj/
+lib/

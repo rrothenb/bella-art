@@ -8,6 +8,11 @@
 #include "dl_core/dl_args.h"
 #include "dl_core/dl_vector.h"
 
+#include <cstdio>
+#include <cmath>
+#include <cstdint>
+#include <unistd.h>
+
 using namespace dl;
 using namespace bella_sdk;
 using namespace dl::math;
@@ -66,6 +71,43 @@ static Double spow(Double x, Double y)
 static Double strength(Int n, Double x)
 {
     return pow(2.0, sin(pow(Double(n), 0.5) * (x + Double(n) / 3.0)));
+}
+
+//=================================================================================================
+// Radiance HDR (RGBE) file writer.
+//=================================================================================================
+
+// Encode a float RGB pixel to Radiance RGBE (4 bytes: R, G, B mantissa + shared exponent).
+static void rgbeEncode(float r, float g, float b, uint8_t out[4])
+{
+    float maxComp = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    if (maxComp < 1e-32f)
+    {
+        out[0] = out[1] = out[2] = out[3] = 0;
+        return;
+    }
+    int e;
+    float scale = frexpf(maxComp, &e) * 256.0f / maxComp;
+    out[0] = (uint8_t)(r * scale);
+    out[1] = (uint8_t)(g * scale);
+    out[2] = (uint8_t)(b * scale);
+    out[3] = (uint8_t)(e + 128);
+}
+
+// Write a Radiance HDR file (non-RLE RGBE, row-major, float RGB input).
+static bool writeHDR(const char* path, int width, int height, const float* rgb)
+{
+    FILE* f = fopen(path, "wb");
+    if (!f) return false;
+    fprintf(f, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y %d +X %d\n", height, width);
+    for (int i = 0; i < width * height; ++i)
+    {
+        uint8_t pixel[4];
+        rgbeEncode(rgb[i*3+0], rgb[i*3+1], rgb[i*3+2], pixel);
+        fwrite(pixel, 1, 4, f);
+    }
+    fclose(f);
+    return true;
 }
 
 //=================================================================================================
@@ -506,13 +548,25 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     while (steps.inputCount() > 1)
         steps.removeLastInput();
 
-    // Glass material (quickMaterial type="glass"), matching Go's roughdielectric+homogeneous medium
+    // Glass material (dielectric + scattering node), matching Go's roughdielectric+homogeneous medium
     // int_ior = sin(11*t)+2, ext_ior = 2-cos(13*t)
     Double intIor = sin(11.0 * t) + 2.0;
     Double extIor = 2.0 - cos(13.0 * t);
-    auto meshMat = scene.createNode("quickMaterial", "meshMaterial");
-    meshMat["type"] = String("glass");
-    meshMat["glassIor"] = Real(intIor / extIor);  // relative IOR
+
+    // Scattering medium: albedo=1 (fully scattering, no absorption), isotropic (g=0), white
+    // Matches Go's homogeneous medium: albedo=1,1,1, sigma_t=1,1,1, scale=0.5, HG g=0
+    auto meshScattering = scene.createNode("scattering", "meshScattering");
+    meshScattering["albedo"] = Real(1.0);
+    meshScattering["anisotropy"] = Real(0.1);
+    meshScattering["color"] = Rgba {1.0f, 1.0f, 1.0f, 1.0f};
+
+    auto meshMat = scene.createNode("dielectric", "meshMaterial");
+    meshMat["ior"] = Real(intIor / extIor);  // relative IOR
+    meshMat["roughness"] = Real(0.005);       // matches Go's roughdielectric alpha=0.005
+    meshMat["depth"] = Real(.3);            // absorption depth in cm; default may be 0 (fully opaque)
+    meshMat["abbe"] = Real(50);
+    meshMat["dispersion"] = true;
+    meshMat["scattering"] = meshScattering;
 
     // Wrap mesh in an xform with the material
     auto meshXform = scene.createNode("xform", "mesh_xform");
@@ -529,12 +583,12 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto world = scene.createNode("xform", "world");
 
     // Create tonemapping node (ACES)
-    auto tonemap = scene.createNode("aces", "aces");
+    //auto tonemap = scene.createNode("aces", "aces");
     
     // Create sensor node
     auto sensor = scene.createNode("sensor", "sensor");
     sensor["size"] = Vec2 {24.0, 24.0};
-    sensor["tonemapping"] = tonemap;
+    //sensor["tonemapping"] = tonemap;
     
     // FOV = 120 + cos(14*t)*30 degrees (matching series110.go)
     // For square 24mm sensor: focalLen = (sensorWidth/2) / tan(FOV_rad/2)
@@ -592,13 +646,60 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     // Add camera xform to world
     world["children"].appendElement().set(cameraXform);
 
-    // Create environment map using colorDome (SDK-compatible)
-    auto envmapNode = scene.createNode("colorDome", "environment");
-    envmapNode["multiplier"] = Real(1.0);
+    // Generate procedural environment map matching series110.go:
+    //   power = 2 * 4^(sin(15*t)-1)
+    //   envmapValue = sin(u/2)^(4*power) * sin(v/2)^power
+    //   R = envmapValue^(2^sin(17*t)),  G = envmapValue^(2^cos(18*t)),  B = envmapValue^(2^-sin(19*t))
+    int envSize = int(sqrt(double(desiredTriangles)));
+    ds::Vector<float> envRgb;
+    {
+        double power = 2.0 * pow(4.0, sin(15.0 * t) - 1.0);
+        double expR  = pow(2.0,  sin(17.0 * t));
+        double expG  = pow(2.0,  cos(18.0 * t));
+        double expB  = pow(2.0, -sin(19.0 * t));
+        for (int vIdx = 0; vIdx < envSize; ++vIdx)
+        {
+            for (int uIdx = 0; uIdx < envSize; ++uIdx)
+            {
+                double u  = double(uIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
+                double v  = double(vIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
+                double ev = 1 - pow(sin(u / 2.0), power * 64 ) * pow(sin(v / 2.0), power * 16);
+                envRgb.push_back(float(pow(ev, expR)));
+                envRgb.push_back(float(pow(ev, expG)));
+                envRgb.push_back(float(pow(ev, expB)));
+            }
+        }
+    }
+
+    // Write env map as Radiance HDR alongside the BSA file
+    char cwdBuf[1024];
+    getcwd(cwdBuf, sizeof(cwdBuf));
+    String envDir(cwdBuf);
+    String envFile = String::format("surface_env_%d", frameNumber);
+    String envHdrPath = String::format("%s/%s.hdr", cwdBuf, envFile.buf());
+    if (writeHDR(envHdrPath.buf(), envSize, envSize, &envRgb[0]))
+        logInfo("Wrote env map: %s", envHdrPath.buf());
+    else
+        logError("Failed to write env map: %s", envHdrPath.buf());
+
+    // Create imageDome using the procedural env map.
+    // Apply -90° rotation around Z (Bella's up axis) to match Mitsuba's
+    // "<rotate value='0,1,0' angle='-90'/>" which shifts the azimuth by -90°.
+    // Orange-juice.bsa xform convention: Row0=(cos θ, -sin θ, 0), Row1=(sin θ, cos θ, 0).
+    auto envmapNode = scene.createNode("imageDome", "environment");
+    envmapNode["dir"] = envDir;
+    envmapNode["file"] = envFile;
+    envmapNode["ext"] = String(".hdr");
+    // cos(-90°)=0, -sin(-90°)=1, sin(-90°)=-1
+    envmapNode["xform"] = Mat3::make(
+        0.0, 1.0, 0.0,
+        -1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0
+    );
 
     // Create instances (grid of copies)
     // Go: num=9, iterates x/y/z in [-9..9] including center, 19^3=6859 total
-    Int numInstances = 9;
+    Int numInstances = 1;
     Double maxDim = max(maxX, max(maxY, maxZ));
     Double instanceScale = 0.49 / max(maxDim, 0.001);
 
@@ -660,6 +761,8 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     beautyPass["saveBsi"] = Int(0);  // Enable BSI saving
     beautyPass["saveImage"] = Int(0);  // Enable image saving
     beautyPass["targetNoise"] = UInt(8);
+    beautyPass["bouncesRefraction"] = Int(32);  // high refraction bounce limit for dense glass grid
+    beautyPass["solver"] = String("Atlas");
     settings["beautyPass"] = beautyPass;
 
     // Create state node that links settings and world

@@ -13,6 +13,9 @@
 #include <cstdint>
 #include <unistd.h>
 
+#include "src/dl_core/dl_math.h"
+#include "src/dl_core/dl_string.h"
+
 using namespace dl;
 using namespace bella_sdk;
 using namespace dl::math;
@@ -255,14 +258,14 @@ static Vec3 innerKnot(Double t)
     return torusKnot(t, 1, 0.15, 3, 2, outerKnot);
 }
 
-static Vec3 cameraPath(Double /*t*/)
+static Vec3 cameraPath(Double t)
 {
-    return Vec3 {0.5, 0, 0};
+    return Vec3 {.5*sin(41*t), 0, 0};
 }
 
 static Vec3 focusPath(Double /*t*/)
 {
-    return Vec3 {0, 0, 0};
+    return Vec3 {-1, 0, 0};
 }
 
 static Vec3 pathWrapper(Double u, Double v, Double r, std::function<Vec3(Double)> path)
@@ -556,15 +559,15 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     // Scattering medium: albedo=1 (fully scattering, no absorption), isotropic (g=0), white
     // Matches Go's homogeneous medium: albedo=1,1,1, sigma_t=1,1,1, scale=0.5, HG g=0
     auto meshScattering = scene.createNode("scattering", "meshScattering");
-    meshScattering["albedo"] = Real(1.0);
-    meshScattering["anisotropy"] = Real(0.1);
+    meshScattering["albedo"] = Real(.01);
+    meshScattering["anisotropy"] = Real(.01);
     meshScattering["color"] = Rgba {1.0f, 1.0f, 1.0f, 1.0f};
 
     auto meshMat = scene.createNode("dielectric", "meshMaterial");
     meshMat["ior"] = Real(intIor / extIor);  // relative IOR
-    meshMat["roughness"] = Real(0.005);       // matches Go's roughdielectric alpha=0.005
-    meshMat["depth"] = Real(.3);            // absorption depth in cm; default may be 0 (fully opaque)
-    meshMat["abbe"] = Real(50);
+    meshMat["roughness"] = Real(.01);       // matches Go's roughdielectric alpha=0.005
+    meshMat["depth"] = Real(10000);            // absorption depth in cm; default may be 0 (fully opaque)
+    meshMat["abbe"] = Real(30);
     meshMat["dispersion"] = true;
     meshMat["scattering"] = meshScattering;
 
@@ -583,37 +586,32 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto world = scene.createNode("xform", "world");
 
     // Create tonemapping node (ACES)
-    //auto tonemap = scene.createNode("aces", "aces");
+    auto tonemap = scene.createNode("filmicHable", "tonemap");
     
     // Create sensor node
     auto sensor = scene.createNode("sensor", "sensor");
     sensor["size"] = Vec2 {24.0, 24.0};
-    //sensor["tonemapping"] = tonemap;
-    
+    sensor["tonemapping"] = tonemap;
+
     // FOV = 120 + cos(14*t)*30 degrees (matching series110.go)
     // For square 24mm sensor: focalLen = (sensorWidth/2) / tan(FOV_rad/2)
     Double fovDeg = 120.0 + cos(14.0 * t) * 30.0;
     Double fovRad = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
 
-    // Create thinLens node
-    auto thinLens = scene.createNode("thinLens", "thinLens");
-    thinLens["steps"].appendElement();
-    thinLens["steps"][0]["focalLen"] = Real(focalLenMm);
-    thinLens["steps"][0]["fStop"] = Real(5.6);
-    thinLens["steps"][0]["focusDist"] = Real(distance);
-    
-    // Remove any extra steps that might have been created
-    auto thinLensSteps = thinLens["steps"];
-    while (thinLensSteps.inputCount() > 1)
-        thinLensSteps.removeLastInput();
-    
+    auto lens = scene.createNode("thinLens", "thinLens");
+    lens["steps"].appendElement();
+    lens["steps"][0]["focalLen"] = Real(focalLenMm);
+    lens["steps"][0]["fStop"] = Real(pow(1.5, sin(37*t))*170.0);
+    lens["steps"][0]["focusDist"] = Real(distance);
+
     // Create camera node
     auto cameraNode = scene.createNode("camera", "cameraObj");
     cameraNode["sensor"] = sensor;
-    cameraNode["lens"] = thinLens;
-    cameraNode["resolution"] = Vec2 {1920.0, 1080.0};
-    cameraNode["pinhole"] = true;
+    cameraNode["lens"] = lens;
+    cameraNode["resolution"] = Vec2 {720.0, 720.0};
+    cameraNode["exposureMode"] = String("aperture");
+    cameraNode["ev"] = Real(14);  // default, adjust to taste
 
     // Build camera lookAt matrix.
     // Bella row-vector convention: Row0=right, Row1=right×forward (image-down), Row2=forward, Row3=position.
@@ -663,7 +661,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             {
                 double u  = double(uIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
                 double v  = double(vIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
-                double ev = 1 - pow(sin(u / 2.0), power * 64 ) * pow(sin(v / 2.0), power * 16);
+                double ev = 1 - pow(sin(u / 2.0), power * 4 ) * pow(sin(v / 2.0), power);
                 envRgb.push_back(float(pow(ev, expR)));
                 envRgb.push_back(float(pow(ev, expG)));
                 envRgb.push_back(float(pow(ev, expB)));
@@ -689,6 +687,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto envmapNode = scene.createNode("imageDome", "environment");
     envmapNode["dir"] = envDir;
     envmapNode["file"] = envFile;
+    envmapNode["multiplier"] = Real(3);
     envmapNode["ext"] = String(".hdr");
     // cos(-90°)=0, -sin(-90°)=1, sin(-90°)=-1
     envmapNode["xform"] = Mat3::make(
@@ -699,7 +698,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     // Create instances (grid of copies)
     // Go: num=9, iterates x/y/z in [-9..9] including center, 19^3=6859 total
-    Int numInstances = 1;
+    Int numInstances = 9;
     Double maxDim = max(maxX, max(maxY, maxZ));
     Double instanceScale = 0.49 / max(maxDim, 0.001);
 
@@ -717,6 +716,9 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         {
             for (Int z = -numInstances; z <= numInstances; ++z)
             {
+                if (!(x || y || z)) {
+                    continue;
+                }
                 auto instXform = scene.createNode("xform",
                     String::format("inst_%s%d_%s%d_%s%d",
                         x<0?"n":"p", abs(x),
@@ -760,8 +762,8 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     beautyPass["resume"] = "disabled";
     beautyPass["saveBsi"] = Int(0);  // Enable BSI saving
     beautyPass["saveImage"] = Int(0);  // Enable image saving
-    beautyPass["targetNoise"] = UInt(8);
-    beautyPass["bouncesRefraction"] = Int(32);  // high refraction bounce limit for dense glass grid
+    beautyPass["targetNoise"] = UInt(2);
+    beautyPass["bouncesRefraction"] = Int(128);  // high refraction bounce limit for dense glass grid
     beautyPass["solver"] = String("Atlas");
     settings["beautyPass"] = beautyPass;
 

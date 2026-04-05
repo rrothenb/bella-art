@@ -102,9 +102,9 @@ endif
 OBJS = main.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(OBJS))
 
-SURFACE_OBJS = bella_surface.o
-SURFACE_OBJ = $(patsubst %,$(OBJDIR)/%,$(SURFACE_OBJS))
-SURFACE_OUTPUT = $(BINDIR)/surface
+SERIES1_OBJS = series1.o
+SERIES1_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES1_OBJS))
+SERIES1_OUTPUT = $(BINDIR)/series1
 
 CREATE_SIMPLE_OBJS = create_simple.o
 CREATE_SIMPLE_OBJ = $(patsubst %,$(OBJDIR)/%,$(CREATE_SIMPLE_OBJS))
@@ -129,7 +129,7 @@ $(OUTPUT): $(OBJ)
 	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
 	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
 
-$(SURFACE_OUTPUT): $(SURFACE_OBJ)
+$(SERIES1_OUTPUT): $(SERIES1_OBJ)
 	@mkdir -p $(@D)
 	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
 	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
@@ -161,15 +161,15 @@ $(TEST_SURFACE_OUTPUT): $(TEST_SURFACE_OBJ)
 clean:
 	rm -f $(OBJDIR)/*.o
 	rm -f $(OUTPUT)
-	rm -f $(SURFACE_OUTPUT)
+	rm -f $(SERIES1_OUTPUT)
 	rm -f $(CREATE_SIMPLE_OUTPUT)
 	rm -f $(TEST_BSA_OUTPUT)
 	rm -f $(BINDIR)/$(SDKFNAME)
 	rm -f $(BINDIR)/$(USDFNAME)
 	rm -rf $(BINDIR)/usd
 
-.PHONY: surface
-surface: $(SURFACE_OUTPUT)
+.PHONY: series1
+series1: $(SERIES1_OUTPUT)
 
 .PHONY: create_simple
 create_simple: $(CREATE_SIMPLE_OUTPUT)

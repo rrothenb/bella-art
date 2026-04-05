@@ -1,9 +1,9 @@
-bin/Darwin/surface --frame:$1
-/Applications/bella_cli.app/Contents/MacOS/bella_cli -i:surface_frame_$1.bsa &
+bin/Darwin/series1 --frame:$1
+/Applications/bella_cli.app/Contents/MacOS/bella_cli -i:series1_frame_$1.bsa &
 PID=$!
 sleep $2
 kill -INT $PID
 wait $PID
-rm surface_frame_$1.bsa
-rm surface_frame_$1.bsi
-rm surface_env_$1.hdr
+rm series1_frame_$1.bsa
+rm series1_frame_$1.bsi
+rm series1_env_$1.hdr

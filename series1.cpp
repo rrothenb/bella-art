@@ -1,4 +1,4 @@
-// Bella Surface Generator - Port of series110.go
+// Bella Series 1 Generator - Port of series110.go
 // Generates animated procedural surfaces for the Bella renderer
 
 #include "bella_sdk/bella_scene.h"
@@ -673,7 +673,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     char cwdBuf[1024];
     getcwd(cwdBuf, sizeof(cwdBuf));
     String envDir(cwdBuf);
-    String envFile = String::format("surface_env_%d", frameNumber);
+    String envFile = String::format("series1_env_%d", frameNumber);
     String envHdrPath = String::format("%s/%s.hdr", cwdBuf, envFile.buf());
     if (writeHDR(envHdrPath.buf(), envSize, envSize, &envRgb[0]))
         logInfo("Wrote env map: %s", envHdrPath.buf());
@@ -793,7 +793,7 @@ int DL_main(Args& args)
     subscribeLog(&s_logCtx, log);
     flushStartupMessages();
 
-    logBanner("Bella Surface Generator (version: %s, build date: %llu)",
+    logBanner("Bella Series 1 Generator (version: %s, build date: %llu)",
         bellaSdkVersion().toString().buf(),
         bellaSdkBuildDate()
     );
@@ -826,7 +826,7 @@ int DL_main(Args& args)
     renderSurfaces(scene, frame, pixels, maxSubdivisions, dt, desiredTriangles);
 
     // Write scene to BSA text file (more compatible than BSX)
-    String outputPath = String::format("surface_frame_%d.bsa", frame);
+    String outputPath = String::format("series1_frame_%d.bsa", frame);
     if (scene.write(outputPath))
     {
         logInfo("Successfully wrote scene to %s", outputPath.buf());

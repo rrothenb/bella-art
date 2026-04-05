@@ -1,7 +1,7 @@
 bin/Darwin/surface --frame:$1
 /Applications/bella_cli.app/Contents/MacOS/bella_cli -i:surface_frame_$1.bsa &
 PID=$!
-sleep 300  # desired render time in seconds
+sleep $2
 kill -INT $PID
 wait $PID
 rm surface_frame_$1.bsa

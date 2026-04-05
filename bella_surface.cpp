@@ -609,7 +609,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto cameraNode = scene.createNode("camera", "cameraObj");
     cameraNode["sensor"] = sensor;
     cameraNode["lens"] = lens;
-    cameraNode["resolution"] = Vec2 {720.0, 720.0};
+    cameraNode["resolution"] = Vec2 {2400.0, 2400.0};
     cameraNode["exposureMode"] = String("aperture");
     cameraNode["ev"] = Real(14);  // default, adjust to taste
 

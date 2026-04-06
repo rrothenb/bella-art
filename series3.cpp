@@ -1,61 +1,7 @@
 // Bella Series 3 Generator - Port of series102.go
 // Animated torus-knot tube surfaces for the Bella renderer
 
-#include "bella_sdk/bella_scene.h"
-#include "dl_core/dl_math.h"
-#include "dl_core/dl_string.h"
-#include "dl_core/dl_file.h"
-#include "dl_core/dl_args.h"
-#include "dl_core/dl_vector.h"
-
-#include <cstdio>
-#include <cmath>
-#include <cstdint>
-#include <unistd.h>
-
-#include "src/dl_core/dl_math.h"
-#include "src/dl_core/dl_string.h"
-
-using namespace dl;
-using namespace bella_sdk;
-using namespace dl::math;
-
-//=================================================================================================
-// Global state and logging.
-//=================================================================================================
-
-static int s_logCtx = 0;
-
-static void log(void* /*ctx*/, LogType type, const char* msg)
-{
-    switch (type)
-    {
-    case LogType_Info:
-        DL_PRINT("[INFO] %s\n", msg);
-        break;
-    case LogType_Warning:
-        DL_PRINT("[WARN] %s\n", msg);
-        break;
-    case LogType_Error:
-        DL_PRINT("[ERROR] %s\n", msg);
-        break;
-    case LogType_Custom:
-        DL_PRINT("%s\n", msg);
-        break;
-    case LogType_Progress:
-        {
-            if (dl::logIsProgressBegin(msg))    { }
-            else if (dl::logIsProgressEnd(msg)) { }
-            else
-            {
-                auto val  = dl::logProgressValue(msg);
-                auto text = dl::logProgressText(msg);
-                DL_PRINT("[%f] %s\n", val, text.buf());
-            }
-        }
-        break;
-    }
-}
+#include "bella_series_util.h"
 
 //=================================================================================================
 // Global animation time.
@@ -67,60 +13,15 @@ static void log(void* /*ctx*/, LogType type, const char* msg)
 static Double s_globalT = 0.0;
 
 //=================================================================================================
-// Math helpers.
+// Math helpers — series102.go specific.
 //=================================================================================================
 
-static Double sign(Double x)
-{
-    return x < 0 ? -1.0 : 1.0;
-}
-
-static Double spow(Double x, Double y)
-{
-    return sign(x) * pow(abs(x), y);
-}
-
-// series102.go: strength(x) = sin(x)*1.25 + 1.25
-// NOTE: this is a single-argument function, different from series2's two-argument strength.
+// series102.go: strength(x) = sin(x)*1.25 + 1.25  (single-arg, unlike series1/2)
 static Double strength(Double x)
 {
     return sin(x) * 1.25 + 1.25;
 }
 
-//=================================================================================================
-// Radiance HDR (RGBE) file writer.
-//=================================================================================================
-
-static void rgbeEncode(float r, float g, float b, uint8_t out[4])
-{
-    float maxComp = r > g ? (r > b ? r : b) : (g > b ? g : b);
-    if (maxComp < 1e-32f)
-    {
-        out[0] = out[1] = out[2] = out[3] = 0;
-        return;
-    }
-    int   e;
-    float scale = frexpf(maxComp, &e) * 256.0f / maxComp;
-    out[0] = (uint8_t)(r * scale);
-    out[1] = (uint8_t)(g * scale);
-    out[2] = (uint8_t)(b * scale);
-    out[3] = (uint8_t)(e + 128);
-}
-
-static bool writeHDR(const char* path, int width, int height, const float* rgb)
-{
-    FILE* f = fopen(path, "wb");
-    if (!f) return false;
-    fprintf(f, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y %d +X %d\n", height, width);
-    for (int i = 0; i < width * height; ++i)
-    {
-        uint8_t pixel[4];
-        rgbeEncode(rgb[i*3+0], rgb[i*3+1], rgb[i*3+2], pixel);
-        fwrite(pixel, 1, 4, f);
-    }
-    fclose(f);
-    return true;
-}
 
 //=================================================================================================
 // Camera (SLR2) with FOV-based visibility culling.
@@ -299,10 +200,6 @@ static Vec3 focusPath(Double t)
     return innerKnot(limitedV);
 }
 
-static Double index2radians(Double index, Int n)
-{
-    return index / Double(n) * dl::math::nc::pi * 2;
-}
 
 //=================================================================================================
 // Main rendering function.
@@ -588,20 +485,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     cameraNode["exposureMode"] = String("aperture");
     cameraNode["ev"]           = Real(14);
 
-    // Bella row-vector camera matrix: Row0=right, Row1=down, Row2=forward, Row3=position.
-    // series102 is Z-up (lookat up="0,0,1").
-    {
-        Vec3 forward = (focusPoint - cameraLoc).unit();
-        Vec3 worldUp = Vec3{0, 0, 1};
-        Vec3 right   = worldUp.cross(forward).unit();
-        Vec3 down    = right.cross(forward);
-        cam.transform = Mat4::make(
-            Vec4{right.x,     right.y,     right.z,     0},
-            Vec4{down.x,      down.y,      down.z,      0},
-            Vec4{forward.x,   forward.y,   forward.z,   0},
-            Vec4{cameraLoc.x, cameraLoc.y, cameraLoc.z, 1}
-        );
-    }
+    cam.transform = bellaLookAt(cameraLoc, focusPoint, Vec3{0, 0, 1});
 
     auto cameraXform = scene.createNode("xform", "camera");
     cameraXform["steps"].appendElement();

@@ -1,75 +1,11 @@
 // Bella Series 2 Generator - Port of series144.go
 // Generates animated procedural surfaces for the Bella renderer
 
-#include "bella_sdk/bella_scene.h"
-#include "dl_core/dl_math.h"
-#include "dl_core/dl_string.h"
-#include "dl_core/dl_file.h"
-#include "dl_core/dl_args.h"
-#include "dl_core/dl_vector.h"
-
-#include <cstdio>
-#include <cmath>
-#include <cstdint>
-#include <unistd.h>
-
-#include "src/dl_core/dl_math.h"
-#include "src/dl_core/dl_string.h"
-
-using namespace dl;
-using namespace bella_sdk;
-using namespace dl::math;
+#include "bella_series_util.h"
 
 //=================================================================================================
-// Global state and logging.
+// Math helpers — series144.go specific.
 //=================================================================================================
-
-static int s_logCtx = 0;
-
-static void log(void* /*ctx*/, LogType type, const char* msg)
-{
-    switch (type)
-    {
-    case LogType_Info:
-        DL_PRINT("[INFO] %s\n", msg);
-        break;
-    case LogType_Warning:
-        DL_PRINT("[WARN] %s\n", msg);
-        break;
-    case LogType_Error:
-        DL_PRINT("[ERROR] %s\n", msg);
-        break;
-    case LogType_Custom:
-        DL_PRINT("%s\n", msg);
-        break;
-    case LogType_Progress:
-        {
-            if (dl::logIsProgressBegin(msg))    { }
-            else if (dl::logIsProgressEnd(msg)) { }
-            else
-            {
-                auto val = dl::logProgressValue(msg);
-                auto text = dl::logProgressText(msg);
-                DL_PRINT("[%f] %s\n", val, text.buf());
-            }
-        }
-        break;
-    }
-}
-
-//=================================================================================================
-// Math helpers.
-//=================================================================================================
-
-static Double sign(Double x)
-{
-    return x < 0 ? -1.0 : 1.0;
-}
-
-static Double spow(Double x, Double y)
-{
-    return sign(x) * pow(abs(x), y);
-}
 
 // series144.go: pow(8, sin(n*(x+n/10)))
 static Double strength(Int n, Double x)
@@ -98,41 +34,6 @@ static Vec3 hsb2rgb(Double hue, Double sat, Double bri)
     case 5: return Vec3{u,  p, q};
     default: return Vec3{u, u, u};
     }
-}
-
-//=================================================================================================
-// Radiance HDR (RGBE) file writer.
-//=================================================================================================
-
-static void rgbeEncode(float r, float g, float b, uint8_t out[4])
-{
-    float maxComp = r > g ? (r > b ? r : b) : (g > b ? g : b);
-    if (maxComp < 1e-32f)
-    {
-        out[0] = out[1] = out[2] = out[3] = 0;
-        return;
-    }
-    int e;
-    float scale = frexpf(maxComp, &e) * 256.0f / maxComp;
-    out[0] = (uint8_t)(r * scale);
-    out[1] = (uint8_t)(g * scale);
-    out[2] = (uint8_t)(b * scale);
-    out[3] = (uint8_t)(e + 128);
-}
-
-static bool writeHDR(const char* path, int width, int height, const float* rgb)
-{
-    FILE* f = fopen(path, "wb");
-    if (!f) return false;
-    fprintf(f, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y %d +X %d\n", height, width);
-    for (int i = 0; i < width * height; ++i)
-    {
-        uint8_t pixel[4];
-        rgbeEncode(rgb[i*3+0], rgb[i*3+1], rgb[i*3+2], pixel);
-        fwrite(pixel, 1, 4, f);
-    }
-    fclose(f);
-    return true;
 }
 
 //=================================================================================================
@@ -258,11 +159,6 @@ static Vec3 focusPath(Double t)
 {
     Vec3 cp = cameraPath(t + 0.1);
     return Vec3{cp.x, cp.y - 0.1, cp.z};
-}
-
-static Double index2radians(Double index, Int n)
-{
-    return index / Double(n) * dl::math::nc::pi * 2;
 }
 
 // series144.go: blendValue(u, v, t)
@@ -575,19 +471,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     cameraNode["ev"]           = Real(14);
 
     // series144.go uses Y-up lookat (up="0,1,0").
-    // Bella row-vector convention: Row0=right, Row1=down (right×forward), Row2=forward, Row3=position
-    {
-        Vec3 forward = (focusPoint - cameraLoc).unit();
-        Vec3 worldUp = Vec3{0, 1, 0};
-        Vec3 right   = worldUp.cross(forward).unit();
-        Vec3 down    = right.cross(forward);
-        cam.transform = Mat4::make(
-            Vec4{right.x,     right.y,     right.z,     0},
-            Vec4{down.x,      down.y,      down.z,      0},
-            Vec4{forward.x,   forward.y,   forward.z,   0},
-            Vec4{cameraLoc.x, cameraLoc.y, cameraLoc.z, 1}
-        );
-    }
+    cam.transform = bellaLookAt(cameraLoc, focusPoint, Vec3{0, 1, 0});
 
     auto cameraXform = scene.createNode("xform", "camera");
     cameraXform["steps"].appendElement();

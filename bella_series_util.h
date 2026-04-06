@@ -136,3 +136,282 @@ static inline Mat4 bellaLookAt(Vec3 from, Vec3 to, Vec3 worldUp)
         Vec4{from.x,    from.y,    from.z,    1}
     );
 }
+
+//=================================================================================================
+// HSB to RGB (standard algorithm).
+//=================================================================================================
+
+static inline Vec3 hsb2rgb(Double hue, Double sat, Double bri)
+{
+    Double u = bri;
+    if (sat == 0.0) return Vec3{u, u, u};
+    Double h  = (hue - floor(hue)) * 6.0;
+    Double f  = h - floor(h);
+    Double p  = bri * (1.0 - sat);
+    Double q  = bri * (1.0 - sat * f);
+    Double tt = bri * (1.0 - sat * (1.0 - f));
+    switch (int(h))
+    {
+    case 0: return Vec3{u,  tt, p};
+    case 1: return Vec3{q,  u,  p};
+    case 2: return Vec3{p,  u,  tt};
+    case 3: return Vec3{p,  q,  u};
+    case 4: return Vec3{tt, p,  u};
+    case 5: return Vec3{u,  p,  q};
+    default: return Vec3{u, u,  u};
+    }
+}
+
+//=================================================================================================
+// Camera (SLR2).
+// FOV == 0.0  → no frustum culling (invisible() always returns false).
+// FOV >  0.0  → degrees; culls points outside the FOV frustum (series102 convention).
+//=================================================================================================
+
+struct SLR2
+{
+    Double width  = 0.054;   // sensor width  (m)
+    Double height = 0.036;   // sensor height (m)
+    Double lens   = 0.050;
+    Double fStop  = 4.0;
+    Double focus  = 1.0;
+    Double FOV    = 0.0;     // degrees; 0 = no culling
+
+    Vec3 position;
+    Vec3 target;
+    Vec3 rightVec;
+    Vec3 upVec;
+    Vec3 fwdVec;   // (position - target).unit() — points away from scene
+    Mat4 transform;
+
+    SLR2() : position(Vec3{0,0,0}), target(Vec3{0,0,-5}) { computeTransform(); }
+
+    void moveTo(Vec3 p) { position = p; computeTransform(); }
+    void lookAt(Vec3 t) { target   = t; computeTransform(); }
+
+    void computeTransform()
+    {
+        fwdVec   = (position - target).unit();
+        Vec3 z   = {0, 0, 1};
+        rightVec = z.cross(fwdVec).unit();
+        upVec    = fwdVec.cross(rightVec).unit();
+        transform = Mat4::make(
+            Vec4{rightVec.x, rightVec.y, rightVec.z, 0},
+            Vec4{upVec.x,    upVec.y,    upVec.z,    0},
+            Vec4{fwdVec.x,   fwdVec.y,   fwdVec.z,   0},
+            Vec4{position.x, position.y, position.z, 1}
+        );
+    }
+
+    Bool invisible(Vec3 point) const
+    {
+        if (FOV <= 0.0) return false;
+        Vec3   d  = point - position;
+        Double px = d.x*rightVec.x + d.y*rightVec.y + d.z*rightVec.z;
+        Double py = d.x*upVec.x    + d.y*upVec.y    + d.z*upVec.z;
+        Double pz = d.x*fwdVec.x   + d.y*fwdVec.y   + d.z*fwdVec.z;
+        if (pz > 0.0) return true;   // behind camera
+        Double factor = tan(FOV * 1.25 / 360.0 * dl::math::nc::pi);
+        Double aspect = width / height;
+        if (px < pz * factor * aspect) return true;
+        if (px > -pz * factor * aspect) return true;
+        if (py < pz * factor) return true;
+        if (py > -pz * factor) return true;
+        return false;
+    }
+};
+
+//=================================================================================================
+// Generalised sphere/cube parametric shape.
+// a=0.0  → sphere
+// a=0.6  → cube-ish distortion (series144)
+// a=f(t) → animated cube (series110)
+//=================================================================================================
+
+static inline Vec3 cube(Double u, Double v, Double a)
+{
+    return Vec3{
+        sin(v/2.0 + a*sin(v)) * cos(u - a*sin(2*u)),
+        sin(v/2.0 + a*sin(v)) * sin(u + a*sin(2*u)),
+        cos(v/2.0 - a*sin(v))
+    };
+}
+
+//=================================================================================================
+// Unit circle in the XY plane.
+//=================================================================================================
+
+static inline Vec3 circle(Double t)
+{
+    return Vec3{sin(t), cos(t), 0};
+}
+
+//=================================================================================================
+// Torus-knot parametric curve.
+//=================================================================================================
+
+static inline Vec3 torusKnot(Double t, Double R, Double r, Int p, Int q, Vec3(*path)(Double))
+{
+    Vec3   pp = path(Double(q) * t);
+    Double rp = R + r * cos(Double(p) * t);
+    return Vec3{rp * pp.x, rp * pp.y, r * sin(Double(p) * t) + pp.z};
+}
+
+//=================================================================================================
+// Frenet-frame tube around a parametric path.
+//=================================================================================================
+
+static inline Vec3 pathWrapper(Double u, Double v, Double r, Vec3(*path)(Double))
+{
+    Double delta   = 0.01;
+    Vec3   center  = path(v);
+    Vec3   diff    = path(v + delta) - path(v - delta);
+    Vec3   tangent = (diff.norm() > 1e-10) ? diff.unit() : Vec3{1, 0, 0};
+    Vec3   sinVec  = tangent.cross(Vec3{0, 0, 1}).unit();
+    Vec3   cosVec  = tangent.cross(sinVec);   // tangent⊥sinVec → already unit
+    Double cu = r * cos(u);
+    Double su = r * sin(u);
+    return Vec3{
+        cosVec.x * cu + sinVec.x * su + center.x,
+        cosVec.y * cu + sinVec.y * su + center.y,
+        cosVec.z * cu + sinVec.z * su + center.z
+    };
+}
+
+//=================================================================================================
+// Mesh generation — second pass.
+// Builds vertex, normal, UV and polygon arrays from a UV parametric surface.
+// Uses offset-based indexing so [startU..endU] × [startV..endV] can be any sub-range.
+// Bella mesh requires float (f32) — pos3d/vec3d causes silent render failure.
+//=================================================================================================
+
+static void generateMeshData(
+    Vec3(*uv2xyz)(Double, Double, Double),
+    SLR2&              cam,
+    Int nU,  Int nV,
+    Int startUIndex, Int endUIndex,
+    Int startVIndex, Int endVIndex,
+    Double             t,
+    ds::Vector<Pos3f>& points,
+    ds::Vector<Vec3f>& normals,
+    ds::Vector<Vec2f>& uvs,
+    ds::Vector<Vec4u>& polygons)
+{
+    Int dV = endVIndex - startVIndex + 2;
+    Int dU = endUIndex - startUIndex + 2;
+
+    ds::Vector<Int32> vertexIndices;
+    vertexIndices.resize(dU * dV);
+    for (Int i = 0; i < dU * dV; ++i) vertexIndices[i] = Int32(-1);
+
+    Int numVertices = 0;
+
+    for (Int uIndex = startUIndex; uIndex <= endUIndex; ++uIndex)
+    {
+        for (Int vIndex = startVIndex; vIndex <= endVIndex; ++vIndex)
+        {
+            Double u      = index2radians(Double(uIndex), nU);
+            Double v      = index2radians(Double(vIndex), nV);
+            Vec3   vertex = uv2xyz(u, v, t);
+
+            Int32 vertexIdx = -1;
+            if (!cam.invisible(vertex))
+            {
+                Double delta = 0.1;
+                Vec3 left  = uv2xyz(index2radians(Double(uIndex) - delta, nU), v, t);
+                Vec3 right = uv2xyz(index2radians(Double(uIndex) + delta, nU), v, t);
+                Vec3 up    = uv2xyz(u, index2radians(Double(vIndex) + delta, nV), t);
+                Vec3 down  = uv2xyz(u, index2radians(Double(vIndex) - delta, nV), t);
+
+                Vec3 tanU      = right - left;
+                Vec3 tanV      = up - down;
+                Vec3 normalRaw = tanV.cross(tanU);
+                Vec3 normal    = (normalRaw.norm() > 1e-10) ? normalRaw.unit() : vertex.unit();
+
+                Double uvU = Double(uIndex - startUIndex) / Double(max(Int(1), endUIndex - startUIndex));
+                Double uvV = Double(vIndex - startVIndex) / Double(max(Int(1), endVIndex - startVIndex));
+
+                vertexIdx = numVertices++;
+                points.push_back(Pos3f{Float(vertex.x), Float(vertex.y), Float(vertex.z)});
+                normals.push_back(Vec3f{Float(normal.x), Float(normal.y), Float(normal.z)});
+                uvs.push_back(Vec2f{Float(uvU), Float(uvV)});
+            }
+            vertexIndices[(uIndex - startUIndex) * dV + (vIndex - startVIndex)] = vertexIdx;
+        }
+    }
+
+    Int numFaces = 0;
+    for (Int vIndex = startVIndex; vIndex < endVIndex; ++vIndex)
+    {
+        for (Int uIndex = startUIndex; uIndex < endUIndex; ++uIndex)
+        {
+            Int32 topRight = vertexIndices[(uIndex     - startUIndex) * dV + (vIndex     - startVIndex)];
+            Int32 topLeft  = vertexIndices[(uIndex + 1 - startUIndex) * dV + (vIndex     - startVIndex)];
+            Int32 botRight = vertexIndices[(uIndex     - startUIndex) * dV + (vIndex + 1 - startVIndex)];
+            Int32 botLeft  = vertexIndices[(uIndex + 1 - startUIndex) * dV + (vIndex + 1 - startVIndex)];
+
+            if (topRight == -1 || topLeft == -1 || botRight == -1 || botLeft == -1)
+                continue;
+
+            polygons.push_back(Vec4u{UInt32(topRight), UInt32(botLeft),  UInt32(topLeft),  UInt32(topLeft)});
+            polygons.push_back(Vec4u{UInt32(topRight), UInt32(botRight), UInt32(botLeft),  UInt32(botLeft)});
+            numFaces += 2;
+        }
+    }
+
+    logInfo("Generated %d vertices and %d faces", numVertices, numFaces);
+}
+
+//=================================================================================================
+// Create a Bella mesh node from pre-built geometry arrays.
+//=================================================================================================
+
+static inline Node buildBellaMesh(Scene& scene, const char* name,
+    const ds::Vector<Pos3f>& points,
+    const ds::Vector<Vec3f>& normals,
+    const ds::Vector<Vec2f>& uvs,
+    const ds::Vector<Vec4u>& polygons)
+{
+    auto meshNode = scene.createNode("mesh", name);
+    auto steps    = meshNode["steps"];
+    steps.appendElement();
+    auto step0       = steps[0];
+    step0["points"]  = points;
+    step0["normals"] = normals;
+    step0["uvs"]     = uvs;
+    meshNode["polygons"] = polygons;
+    while (steps.inputCount() > 1) steps.removeLastInput();
+    return meshNode;
+}
+
+//=================================================================================================
+// Build the Bella render-graph tail: beautyPass → settings → state → global.
+// Also trims any extra world steps.
+//=================================================================================================
+
+static inline void buildBellaRenderSettings(Scene& scene, Node cameraNode, Node envmapNode,
+    Node world, Int bouncesRefraction = 128)
+{
+    auto settings = scene.createNode("settings", "settings");
+    settings["camera"]      = cameraNode;
+    settings["environment"] = envmapNode;
+
+    auto beautyPass = scene.createNode("beautyPass", "beautyPass");
+    beautyPass["resume"]            = "disabled";
+    beautyPass["saveBsi"]           = Int(0);
+    beautyPass["saveImage"]         = Int(0);
+    beautyPass["targetNoise"]       = UInt(2);
+    beautyPass["bouncesRefraction"] = Int(bouncesRefraction);
+    beautyPass["solver"]            = String("Atlas");
+    settings["beautyPass"] = beautyPass;
+
+    auto state = scene.createNode("state", "state");
+    state["settings"] = settings;
+    state["world"]    = world;
+
+    auto globalNode = scene.createNode("global", "global");
+    globalNode["states"].appendElement().set(state);
+
+    auto worldSteps = world["steps"];
+    while (worldSteps.inputCount() > 1) worldSteps.removeLastInput();
+}

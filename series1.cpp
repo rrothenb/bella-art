@@ -4,192 +4,37 @@
 #include "bella_series_util.h"
 
 //=================================================================================================
-// Math helpers — series110.go specific.
+// Surface function — series110.go: animated cube distortion, Z-up.
+// a = -(0.25 + cos(21t)*0.25); calls shared cube(u, v, a).
+//=================================================================================================
+
+static Vec3 uv2xyz(Double u, Double v, Double t)
+{
+    return cube(u, v, -(0.25 + cos(21*t)*0.25));
+}
+
+//=================================================================================================
+// Camera and focus paths (series110.go).
+//=================================================================================================
+
+static Vec3 cameraPath(Double t)
+{
+    return Vec3{0.5*sin(41*t), 0, 0};
+}
+
+static Vec3 focusPath(Double /*t*/)
+{
+    return Vec3{-1, 0, 0};
+}
+
+//=================================================================================================
+// shapeTexture — used for per-vertex color variation.
+// strength(n,x) = 2^(sin(sqrt(n)*(x+n/3))) — series110 formula.
 //=================================================================================================
 
 static Double strength(Int n, Double x)
 {
     return pow(2.0, sin(pow(Double(n), 0.5) * (x + Double(n) / 3.0)));
-}
-
-//=================================================================================================
-// Camera (SLR2).
-//=================================================================================================
-
-struct SLR2
-{
-    Double width;
-    Double height;
-    Double lens;
-    Double fStop;
-    Double focus;
-
-    Mat4 transform;
-    Vec3 position;
-    Vec3 target;
-
-    SLR2()
-        : width(0.054)
-        , height(0.036)
-        , lens(0.050)
-        , fStop(4.0)
-        , focus(1.0)
-        , position(Vec3 {0, 0, 0})
-        , target(Vec3 {0, 0, -5})
-    {
-        computeTransform();
-    }
-
-    void lookAt(Vec3 t)
-    {
-        target = t;
-        computeTransform();
-    }
-
-    void moveTo(Vec3 p)
-    {
-        position = p;
-        computeTransform();
-    }
-
-    void computeTransform()
-    {
-        // LookAt matrix construction (similar to Go code)
-        Vec3 f = (position - target).unit();  // forward
-        Vec3 zAxis = Vec3 {0, 0, 1};
-        Vec3 r = zAxis.cross(f).unit();       // right
-        Vec3 u = f.cross(r).unit();           // up
-
-        // Orientation matrix (row-major)
-        Mat4 orient = Mat4::make(
-            Vec4 {r.x, r.y, r.z, 0},
-            Vec4 {u.x, u.y, u.z, 0},
-            Vec4 {f.x, f.y, f.z, 0},
-            Vec4 {0, 0, 0, 1}
-        );
-
-        // Translation matrix
-        Mat4 trans = Mat4::make(
-            Vec4 {1, 0, 0, position.x},
-            Vec4 {0, 1, 0, position.y},
-            Vec4 {0, 0, 1, position.z},
-            Vec4 {0, 0, 0, 1}
-        );
-
-        transform = trans * orient;
-    }
-
-    Bool invisible(Vec3 /*point*/)
-    {
-        // Simplified visibility test - always return false for now
-        return false;
-    }
-};
-
-//=================================================================================================
-// Procedural shape functions.
-//=================================================================================================
-
-static Vec3 circle(Double x)
-{
-    return Vec3 {sin(x), cos(x), 0};
-}
-
-static Double lipTexture(Double u, Double t)
-{
-    return sin(u + 2*strength(5, t)*sin(u + 2*strength(7, t)*sin(u))
-                 + 2*strength(11, t)*sin(2*u)
-                 + 2*strength(13, t)*sin(3*u));
-}
-
-static Vec3 bowl(Double thickness, Double insideTexture, Double outsideTexture,
-                 Double u, Double v, Double t)
-{
-    Double width = 1.0 + 0.1 * strength(3, t) * pow(sin(v/2), 10)
-                   * pow(spow(lipTexture(u, t), pow(3, sin(2*t)))/2 + 0.5, pow(3, sin(3*t)));
-
-    Double height = sin(t)*0.15 + 0.35 + 0.1 * strength(2, t) * pow(sin(v/2), 10)
-                    * pow(spow(lipTexture(u, t), pow(3, sin(2*t)))/2 + 0.5, pow(3, sin(3*t)));
-
-    Double space = (cos(v/2 - 0.7*sin(v))/2 + 0.5) * (thickness + outsideTexture)
-                   + (0.5 - cos(v/2 - 0.7*sin(v))/2) * insideTexture;
-
-    Double scale = width * (1 + 1/height * space);
-
-    return Vec3 {
-        scale * sin(u) * sin(v/2),
-        scale * cos(u) * sin(v/2),
-        -height * cos(v - (sin(7*t)*0.4 + 0.5) * sin(2*v)) * (1 + 1/height * space)
-    };
-}
-
-static Vec3 torusKnot(Double t, Double R, Double r, Int pInt, Int qInt, std::function<Vec3(Double)> path)
-{
-    Double p = Double(pInt);
-    Double q = Double(qInt);
-    Vec3 pathPoint = path(q * t);
-
-    return Vec3 {
-        (R + r * cos(p*t)) * pathPoint.x,
-        (R + r * cos(p*t)) * pathPoint.y,
-        r * sin(p*t) + pathPoint.z
-    };
-}
-
-static Vec3 lissajousKnot(Double t, Int xN, Int yN, Int zN)
-{
-    return Vec3 {sin(Double(xN) * t), sin(Double(yN) * t), cos(Double(zN) * t)};
-}
-
-static Vec3 unitLissajousKnot(Double t, Int xN, Int yN, Int zN)
-{
-    Vec3 point = lissajousKnot(t, xN, yN, zN);
-    return point.unit();
-}
-
-static Vec3 outerKnot(Double t)
-{
-    return torusKnot(t, 1, 0.25, 2, 3, circle);
-}
-
-static Vec3 innerKnot(Double t)
-{
-    return torusKnot(t, 1, 0.15, 3, 2, outerKnot);
-}
-
-static Vec3 cameraPath(Double t)
-{
-    return Vec3 {.5*sin(41*t), 0, 0};
-}
-
-static Vec3 focusPath(Double /*t*/)
-{
-    return Vec3 {-1, 0, 0};
-}
-
-static Vec3 pathWrapper(Double u, Double v, Double r, std::function<Vec3(Double)> path)
-{
-    Double delta = 0.01;
-    Vec3 center = path(v);
-    Vec3 tangent = (path(v + delta) - path(v - delta)).unit();
-    Vec3 normal = tangent.cross(Vec3 {0, 0, 1});
-    Vec3 binormal = tangent.cross(normal);
-
-    return binormal * (r * cos(u)) + normal * (r * sin(u)) + center;
-}
-
-static Vec3 knot(Double t)
-{
-    return unitLissajousKnot(t, 19, 20, 21);
-}
-
-static Vec3 sphere(Double u, Double v, Double /*t*/)
-{
-    return Vec3 {
-        sin(v/2.0) * cos(u),
-        sin(v/2.0) * sin(u),
-        cos(v/2.0)
-    };
 }
 
 static Double shapeTexture(Double f, Double a, Double t, Vec3 loc)
@@ -219,26 +64,6 @@ static Double shapeTexture(Double f, Double a, Double t, Vec3 loc)
     return sin(result);
 }
 
-static Vec3 cube(Double u, Double v, Double t)
-{
-    Double a = -(0.25 + cos(21*t)*0.25);
-    return Vec3 {
-        sin(v/2.0 + a*sin(v)) * cos(u - a*sin(2*u)),
-        sin(v/2.0 + a*sin(v)) * sin(u + a*sin(2*u)),
-        cos(v/2.0 - a*sin(v))
-    };
-}
-
-static Vec3 shape(Double u, Double v, Double t)
-{
-    return cube(u, v, t);
-}
-
-static Vec3 uv2xyz(Double u, Double v, Double t)
-{
-    return shape(u, v, t);
-}
-
 //=================================================================================================
 // Main rendering function.
 //=================================================================================================
@@ -248,11 +73,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 {
     Double t = Double(frameNumber) * dt;
 
-    // Camera setup
-    Vec3 cameraLoc = cameraPath(t);
+    Vec3 cameraLoc  = cameraPath(t);
     Vec3 focusPoint = focusPath(t);
 
-    SLR2 cam;
+    SLR2 cam;   // FOV=0 → no frustum culling
     cam.moveTo(cameraLoc);
     cam.lookAt(focusPoint);
 
@@ -264,27 +88,18 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             focusPoint.x, focusPoint.y, focusPoint.z,
             distance, t);
 
-    // Generate mesh data
-    Int nU = 500;
-    Int nV = 500;
-
-    // First pass: count visible triangles and compute bounds
-    Int numTriangles = 0;
-    Double totalWidth = 0.0;
-    Double totalHeight = 0.0;
-    Double minDistance = 100.0;
-    Double maxDistance = 0.0;
+    // First pass: estimate mesh density and scene bounds (500×500 sample grid).
+    Int    numTriangles = 0;
+    Double totalWidth   = 0.0, totalHeight = 0.0;
     Double maxX = 0.0, maxY = 0.0, maxZ = 0.0;
-    Double minZ = 1.0;
 
-    // First pass - estimate density
     for (Int uIndex = 0; uIndex <= 500; ++uIndex)
     {
         for (Int vIndex = 0; vIndex <= 500; ++vIndex)
         {
-            Double u = index2radians(Double(uIndex), 500);
-            Double v = index2radians(Double(vIndex), 500);
-            Vec3 vertex = uv2xyz(u, v, t);
+            Double u      = index2radians(Double(uIndex), 500);
+            Double v      = index2radians(Double(vIndex), 500);
+            Vec3   vertex = uv2xyz(u, v, t);
 
             if (!cam.invisible(vertex))
             {
@@ -292,241 +107,122 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
                 if (uIndex > 0)
                 {
-                    Double uLeft = index2radians(Double(uIndex - 1), 500);
-                    Vec3 vertexLeft = uv2xyz(uLeft, v, t);
-                    totalWidth += (vertex - vertexLeft).norm();
+                    Vec3 vL = uv2xyz(index2radians(Double(uIndex-1), 500), v, t);
+                    totalWidth += (vertex - vL).norm();
                 }
-
                 if (vIndex > 0)
                 {
-                    Double vBelow = index2radians(Double(vIndex - 1), 500);
-                    Vec3 vertexBelow = uv2xyz(u, vBelow, t);
-                    totalHeight += (vertex - vertexBelow).norm();
+                    Vec3 vB = uv2xyz(u, index2radians(Double(vIndex-1), 500), t);
+                    totalHeight += (vertex - vB).norm();
                 }
 
-                Double vlen = vertex.norm();
-                minDistance = min(minDistance, vlen);
-                maxDistance = max(maxDistance, vlen);
                 maxX = max(maxX, abs(vertex.x));
                 maxY = max(maxY, abs(vertex.y));
                 maxZ = max(maxZ, abs(vertex.z));
-                minZ = min(minZ, vertex.z);
             }
         }
     }
 
-    // Calculate adaptive resolution
+    // Adaptive resolution.
     Double ratio = totalWidth / totalHeight;
     if (ratio < 0.001) ratio = 0.001;
     if (ratio > 1000.0) ratio = 1000.0;
 
-    nU = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio) * 500);
-    nV = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) / ratio) * 500);
+    Int nU = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio) * 500);
+    Int nV = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) / ratio) * 500);
 
     while (nV > 15000)
     {
-        ratio = ratio * 10;
+        ratio *= 10;
         nU = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio) * 500);
         nV = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) / ratio) * 500);
     }
 
-    // Clamp to reasonable values
     nU = max(Int(10), min(nU, Int(2000)));
     nV = max(Int(10), min(nV, Int(2000)));
 
     logInfo("Mesh resolution: %d x %d (ratio=%f, triangles=%d)", nU, nV, ratio, numTriangles);
 
-    // Second pass - generate vertices and faces
-    // Bella mesh requires float (f32) precision — pos3d/vec3d causes silent render failure
+    // Second pass: generate mesh.
     ds::Vector<Pos3f> points;
     ds::Vector<Vec3f> normals;
     ds::Vector<Vec2f> uvs;
-    ds::Vector<Vec4u> polygons;  // vec4u for faces
+    ds::Vector<Vec4u> polygons;
 
-    Int startUIndex = 0;
-    Int endUIndex = nU;
-    Int startVIndex = 0;
-    Int endVIndex = nV;
+    generateMeshData(uv2xyz, cam, nU, nV, 0, nU, 0, nV, t, points, normals, uvs, polygons);
 
-    // Create 2D array for vertex indices (for face generation)
-    ds::Vector<Int32> vertexIndices;
-    vertexIndices.resize((nU + 1) * (nV + 1));
+    auto meshNode = buildBellaMesh(scene, "surface_mesh", points, normals, uvs, polygons);
 
-    Int numVertices = 0;
-    Int numFaces = 0;
-
-    for (Int uIndex = startUIndex; uIndex <= endUIndex; ++uIndex)
-    {
-        for (Int vIndex = startVIndex; vIndex <= endVIndex; ++vIndex)
-        {
-            Double u = index2radians(Double(uIndex), nU);
-            Double v = index2radians(Double(vIndex), nV);
-            Vec3 vertex = uv2xyz(u, v, t);
-
-            Int32 vertexIdx = -1;
-
-            if (!cam.invisible(vertex))
-            {
-                // Compute normal via finite differences (delta=0.1 index units, matching series110.go)
-                Double delta = 0.1;
-                Double uLeft = index2radians(Double(uIndex) - delta, nU);
-                Double uRight = index2radians(Double(uIndex) + delta, nU);
-                Double vUp = index2radians(Double(vIndex) + delta, nV);
-                Double vDown = index2radians(Double(vIndex) - delta, nV);
-
-                Vec3 left = uv2xyz(uLeft, v, t);
-                Vec3 right = uv2xyz(uRight, v, t);
-                Vec3 up = uv2xyz(u, vUp, t);
-                Vec3 down = uv2xyz(u, vDown, t);
-
-                Vec3 tangentU = (right - left);
-                Vec3 tangentV = (up - down);
-                Vec3 normalRaw = tangentV.cross(tangentU);
-                Vec3 normal = (normalRaw.norm() > 1e-10) ? normalRaw.unit() : vertex.unit();
-
-                // Compute UV coordinates
-                Int rangeU = max(Int(1), endUIndex - startUIndex);
-                Int rangeV = max(Int(1), endVIndex - startVIndex);
-                Double uvU = index2radians(Double(uIndex - startUIndex), rangeU) / (dl::math::nc::pi * 2);
-                Double uvV = index2radians(Double(vIndex - startVIndex), rangeV) / (dl::math::nc::pi * 2);
-
-                vertexIdx = numVertices++;
-                points.push_back(Pos3f {Float(vertex.x), Float(vertex.y), Float(vertex.z)});
-                normals.push_back(Vec3f {Float(normal.x), Float(normal.y), Float(normal.z)});
-                uvs.push_back(Vec2f {Float(uvU), Float(uvV)});
-            }
-
-            vertexIndices[uIndex * (nV + 1) + vIndex] = vertexIdx;
-        }
-    }
-
-    // Generate faces (quads as two triangles)
-    for (Int vIndex = startVIndex; vIndex < endVIndex; ++vIndex)
-    {
-        for (Int uIndex = startUIndex; uIndex < endUIndex; ++uIndex)
-        {
-            Int32 topRight = vertexIndices[uIndex * (nV + 1) + vIndex];
-            Int32 topLeft = vertexIndices[(uIndex + 1) * (nV + 1) + vIndex];
-            Int32 botRight = vertexIndices[uIndex * (nV + 1) + (vIndex + 1)];
-            Int32 botLeft = vertexIndices[(uIndex + 1) * (nV + 1) + (vIndex + 1)];
-
-            if (topRight == -1 || topLeft == -1 || botRight == -1 || botLeft == -1)
-                continue;
-
-            // Add two triangles for each quad.
-            // In Bella's vec4u polygon format, triangles repeat the 3rd vertex as the 4th.
-            polygons.push_back(Vec4u {UInt32(topRight), UInt32(botLeft), UInt32(topLeft), UInt32(topLeft)});
-            ++numFaces;
-
-            polygons.push_back(Vec4u {UInt32(topRight), UInt32(botRight), UInt32(botLeft), UInt32(botLeft)});
-            ++numFaces;
-        }
-    }
-
-    logInfo("Generated %d vertices and %d faces", numVertices, numFaces);
-
-    // Create Bella mesh node
-    auto meshNode = scene.createNode("mesh", "surface_mesh");
-
-    // Set up motion blur steps (single step)
-    auto steps = meshNode["steps"];
-    steps.appendElement();  // Add first element
-    auto step0 = steps[0];
-
-    // Set buffers
-    step0["points"] = points;
-    step0["normals"] = normals;
-    step0["uvs"] = uvs;
-
-    // Set polygons
-    meshNode["polygons"] = polygons;
-
-    // Remove any extra steps that might have been created
-    while (steps.inputCount() > 1)
-        steps.removeLastInput();
-
-    // Glass material (dielectric + scattering node), matching Go's roughdielectric+homogeneous medium
-    // int_ior = sin(11*t)+2, ext_ior = 2-cos(13*t)
+    // Glass material: relative IOR cycles, with scattering medium.
     Double intIor = sin(11.0 * t) + 2.0;
     Double extIor = 2.0 - cos(13.0 * t);
 
-    // Scattering medium: albedo=1 (fully scattering, no absorption), isotropic (g=0), white
-    // Matches Go's homogeneous medium: albedo=1,1,1, sigma_t=1,1,1, scale=0.5, HG g=0
     auto meshScattering = scene.createNode("scattering", "meshScattering");
-    meshScattering["albedo"] = Real(.01);
+    meshScattering["albedo"]     = Real(.01);
     meshScattering["anisotropy"] = Real(.01);
-    meshScattering["color"] = Rgba {1.0f, 1.0f, 1.0f, 1.0f};
+    meshScattering["color"]      = Rgba{1.0f, 1.0f, 1.0f, 1.0f};
 
     auto meshMat = scene.createNode("dielectric", "meshMaterial");
-    meshMat["ior"] = Real(intIor / extIor);  // relative IOR
-    meshMat["roughness"] = Real(.01);       // matches Go's roughdielectric alpha=0.005
-    meshMat["depth"] = Real(10000);            // absorption depth in cm; default may be 0 (fully opaque)
-    meshMat["abbe"] = Real(30);
+    meshMat["ior"]        = Real(intIor / extIor);
+    meshMat["roughness"]  = Real(.01);
+    meshMat["depth"]      = Real(10000);
+    meshMat["abbe"]       = Real(30);
     meshMat["dispersion"] = true;
     meshMat["scattering"] = meshScattering;
 
-    // Wrap mesh in an xform with the material
+    // Mesh xform.
     auto meshXform = scene.createNode("xform", "mesh_xform");
     meshXform["steps"].appendElement();
     meshXform["steps"][0]["xform"] = Mat4::identity;
     meshXform["children"].appendElement().set(meshNode);
     meshXform["material"] = meshMat;
-    auto meshXformSteps = meshXform["steps"];
-    while (meshXformSteps.inputCount() > 1)
-        meshXformSteps.removeLastInput();
+    {
+        auto s = meshXform["steps"];
+        while (s.inputCount() > 1) s.removeLastInput();
+    }
 
-    // Add mesh to scene hierarchy
-    // Create world as a regular xform node (not using scene.world() for better compatibility)
+    // World (created before children reference it).
     auto world = scene.createNode("xform", "world");
+    world["steps"].appendElement();
+    world["steps"][0]["xform"] = Mat4::identity;
 
-    // Create tonemapping node (ACES)
+    // Camera.
     auto tonemap = scene.createNode("filmicHable", "tonemap");
-    
-    // Create sensor node
+
     auto sensor = scene.createNode("sensor", "sensor");
-    sensor["size"] = Vec2 {24.0, 24.0};
+    sensor["size"]        = Vec2{24.0, 24.0};
     sensor["tonemapping"] = tonemap;
 
-    // FOV = 120 + cos(14*t)*30 degrees (matching series110.go)
-    // For square 24mm sensor: focalLen = (sensorWidth/2) / tan(FOV_rad/2)
-    Double fovDeg = 120.0 + cos(14.0 * t) * 30.0;
-    Double fovRad = fovDeg * dl::math::nc::pi / 180.0;
+    // FOV = 120 + cos(14t)*30 degrees.
+    Double fovDeg     = 120.0 + cos(14.0 * t) * 30.0;
+    Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
 
     auto lens = scene.createNode("thinLens", "thinLens");
     lens["steps"].appendElement();
-    lens["steps"][0]["focalLen"] = Real(focalLenMm);
-    lens["steps"][0]["fStop"] = Real(pow(1.5, sin(37*t))*170.0);
+    lens["steps"][0]["focalLen"]  = Real(focalLenMm);
+    lens["steps"][0]["fStop"]     = Real(pow(1.5, sin(37*t))*170.0);
     lens["steps"][0]["focusDist"] = Real(distance);
 
-    // Create camera node
     auto cameraNode = scene.createNode("camera", "cameraObj");
-    cameraNode["sensor"] = sensor;
-    cameraNode["lens"] = lens;
-    cameraNode["resolution"] = Vec2 {2400.0, 2400.0};
+    cameraNode["sensor"]       = sensor;
+    cameraNode["lens"]         = lens;
+    cameraNode["resolution"]   = Vec2{2400.0, 2400.0};
     cameraNode["exposureMode"] = String("aperture");
-    cameraNode["ev"] = Real(14);  // default, adjust to taste
+    cameraNode["ev"]           = Real(14);
 
     cam.transform = bellaLookAt(cameraLoc, focusPoint, Vec3{0, 0, 1});
     auto cameraXform = scene.createNode("xform", "camera");
     cameraXform["steps"].appendElement();
     cameraXform["steps"][0]["xform"] = cam.transform;
-
-    // Add camera to xform
     cameraXform["children"].appendElement().set(cameraNode);
-    
-    // Remove any extra steps that might have been created
-    auto cameraSteps = cameraXform["steps"];
-    while (cameraSteps.inputCount() > 1)
-        cameraSteps.removeLastInput();
-
-    // Add camera xform to world
+    {
+        auto s = cameraXform["steps"];
+        while (s.inputCount() > 1) s.removeLastInput();
+    }
     world["children"].appendElement().set(cameraXform);
 
-    // Generate procedural environment map matching series110.go:
-    //   power = 2 * 4^(sin(15*t)-1)
-    //   envmapValue = sin(u/2)^(4*power) * sin(v/2)^power
-    //   R = envmapValue^(2^sin(17*t)),  G = envmapValue^(2^cos(18*t)),  B = envmapValue^(2^-sin(19*t))
+    // Environment map.
     int envSize = int(sqrt(double(desiredTriangles)));
     ds::Vector<float> envRgb;
     {
@@ -540,7 +236,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             {
                 double u  = double(uIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
                 double v  = double(vIdx) / double(envSize) * 2.0 * dl::math::nc::pi;
-                double ev = 1 - pow(sin(u / 2.0), power * 4 ) * pow(sin(v / 2.0), power);
+                double ev = 1 - pow(sin(u / 2.0), power * 4) * pow(sin(v / 2.0), power);
                 envRgb.push_back(float(pow(ev, expR)));
                 envRgb.push_back(float(pow(ev, expG)));
                 envRgb.push_back(float(pow(ev, expB)));
@@ -548,46 +244,36 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         }
     }
 
-    // Write env map as Radiance HDR alongside the BSA file
     char cwdBuf[1024];
     getcwd(cwdBuf, sizeof(cwdBuf));
-    String envDir(cwdBuf);
-    String envFile = String::format("series1_env_%d", frameNumber);
+    String envFile    = String::format("series1_env_%d", frameNumber);
     String envHdrPath = String::format("%s/%s.hdr", cwdBuf, envFile.buf());
     if (writeHDR(envHdrPath.buf(), envSize, envSize, &envRgb[0]))
         logInfo("Wrote env map: %s", envHdrPath.buf());
     else
         logError("Failed to write env map: %s", envHdrPath.buf());
 
-    // Create imageDome using the procedural env map.
-    // Apply -90° rotation around Z (Bella's up axis) to match Mitsuba's
-    // "<rotate value='0,1,0' angle='-90'/>" which shifts the azimuth by -90°.
-    // Orange-juice.bsa xform convention: Row0=(cos θ, -sin θ, 0), Row1=(sin θ, cos θ, 0).
     auto envmapNode = scene.createNode("imageDome", "environment");
-    envmapNode["dir"] = envDir;
-    envmapNode["file"] = envFile;
+    envmapNode["dir"]        = String(cwdBuf);
+    envmapNode["file"]       = envFile;
     envmapNode["multiplier"] = Real(3);
-    envmapNode["ext"] = String(".hdr");
-    // cos(-90°)=0, -sin(-90°)=1, sin(-90°)=-1
+    envmapNode["ext"]        = String(".hdr");
     envmapNode["xform"] = Mat3::make(
-        0.0, 1.0, 0.0,
-        -1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0
+         0.0,  1.0, 0.0,
+        -1.0,  0.0, 0.0,
+         0.0,  0.0, 1.0
     );
 
-    // Create instances (grid of copies)
-    // Go: num=9, iterates x/y/z in [-9..9] including center, 19^3=6859 total
-    Int numInstances = 9;
-    Double maxDim = max(maxX, max(maxY, maxZ));
+    // Instancing grid: series110.go — 19^3 instances around origin.
+    Int    numInstances  = 9;
+    Double maxDim        = max(maxX, max(maxY, maxZ));
     Double instanceScale = 0.49 / max(maxDim, 0.001);
 
     logInfo("Creating instances: scale=%f", instanceScale);
 
-    // Create a shape group for instancing
     auto shapeGroup = scene.createNode("xform", "instance_group");
     shapeGroup["children"].appendElement().set(meshXform);
 
-    // Create grid of instances
     Int instanceCount = 0;
     for (Int x = -numInstances; x <= numInstances; ++x)
     {
@@ -595,35 +281,28 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         {
             for (Int z = -numInstances; z <= numInstances; ++z)
             {
-                if (!(x || y || z)) {
-                    continue;
-                }
+                if (!(x || y || z)) continue;
+
                 auto instXform = scene.createNode("xform",
                     String::format("inst_%s%d_%s%d_%s%d",
                         x<0?"n":"p", abs(x),
                         y<0?"n":"p", abs(y),
                         z<0?"n":"p", abs(z)).buf());
 
-                // Create scale and translation matrix for instance.
-                // Mat4::make(a,b,c,d) takes COLUMNS, col3 = translation.
                 Mat4 instMat = Mat4::make(
-                    Vec4 {instanceScale, 0, 0, 0},
-                    Vec4 {0, instanceScale, 0, 0},
-                    Vec4 {0, 0, instanceScale, 0},
-                    Vec4 {Double(x), Double(y), Double(z), 1}
+                    Vec4{instanceScale, 0, 0, 0},
+                    Vec4{0, instanceScale, 0, 0},
+                    Vec4{0, 0, instanceScale, 0},
+                    Vec4{Double(x), Double(y), Double(z), 1}
                 );
                 instXform["steps"].appendElement();
                 instXform["steps"][0]["xform"] = instMat;
                 instXform["children"].appendElement().set(shapeGroup);
-
-                // Remove any extra steps that might have been created
-                auto instSteps = instXform["steps"];
-                while (instSteps.inputCount() > 1)
-                    instSteps.removeLastInput();
-
-                // Add instance to world
+                {
+                    auto s = instXform["steps"];
+                    while (s.inputCount() > 1) s.removeLastInput();
+                }
                 world["children"].appendElement().set(instXform);
-
                 ++instanceCount;
             }
         }
@@ -631,34 +310,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     logInfo("Created %d instances", instanceCount);
 
-    // Set up render settings
-    auto settings = scene.createNode("settings", "settings");
-    settings["camera"] = cameraNode;
-    settings["environment"] = envmapNode;
-
-    // Create beauty pass for rendering
-    auto beautyPass = scene.createNode("beautyPass", "beautyPass");
-    beautyPass["resume"] = "disabled";
-    beautyPass["saveBsi"] = Int(0);  // Enable BSI saving
-    beautyPass["saveImage"] = Int(0);  // Enable image saving
-    beautyPass["targetNoise"] = UInt(2);
-    beautyPass["bouncesRefraction"] = Int(128);  // high refraction bounce limit for dense glass grid
-    beautyPass["solver"] = String("Atlas");
-    settings["beautyPass"] = beautyPass;
-
-    // Create state node that links settings and world
-    auto state = scene.createNode("state", "state");
-    state["settings"] = settings;
-    state["world"] = world;
-
-    // Create global node that references the state
-    auto globalNode = scene.createNode("global", "global");
-    globalNode["states"].appendElement().set(state);
-    
-    // Remove any extra steps from world xform
-    auto worldSteps = world["steps"];
-    while (worldSteps.inputCount() > 1)
-        worldSteps.removeLastInput();
+    buildBellaRenderSettings(scene, cameraNode, envmapNode, world, 128);
 }
 
 //=================================================================================================
@@ -677,19 +329,17 @@ int DL_main(Args& args)
         bellaSdkBuildDate()
     );
 
-    // Add command line arguments
-    args.add("f", "frame", "0", "Frame number to render.");
-    args.add("p", "pixels", "256", "Pixel resolution.");
-    args.add("m", "maxsubdivisions", "1000", "Maximum subdivisions.");
-    args.add("n", "maxframes", "512", "Maximum frames in animation.");
+    args.add("f", "frame",            "0",     "Frame number to render.");
+    args.add("p", "pixels",           "256",   "Pixel resolution.");
+    args.add("m", "maxsubdivisions",  "1000",  "Maximum subdivisions.");
+    args.add("n", "maxframes",        "512",   "Maximum frames in animation.");
     args.add("t", "desiredtriangles", "50000", "Desired number of triangles.");
 
-    // Parse command line arguments
     Int frame = 0, pixels = 256, maxSubdivisions = 1000, maxFrames = 512, desiredTriangles = 50000;
-    args.value("--frame", "0").parse(frame);
-    args.value("--pixels", "256").parse(pixels);
-    args.value("--maxsubdivisions", "1000").parse(maxSubdivisions);
-    args.value("--maxframes", "512").parse(maxFrames);
+    args.value("--frame",            "0"    ).parse(frame);
+    args.value("--pixels",           "256"  ).parse(pixels);
+    args.value("--maxsubdivisions",  "1000" ).parse(maxSubdivisions);
+    args.value("--maxframes",        "512"  ).parse(maxFrames);
     args.value("--desiredtriangles", "50000").parse(desiredTriangles);
 
     logInfo("frame=%d, pixels=%d, maxSubdivisions=%d, maxFrames=%d, desiredTriangles=%d",
@@ -697,19 +347,14 @@ int DL_main(Args& args)
 
     Double dt = dl::math::nc::pi * 2 / Double(maxFrames);
 
-    // Create scene
     Scene scene;
     scene.loadDefs();
 
-    // Generate surface
     renderSurfaces(scene, frame, pixels, maxSubdivisions, dt, desiredTriangles);
 
-    // Write scene to BSA text file (more compatible than BSX)
     String outputPath = String::format("series1_frame_%d.bsa", frame);
     if (scene.write(outputPath))
-    {
         logInfo("Successfully wrote scene to %s", outputPath.buf());
-    }
     else
     {
         logError("Failed to write scene to %s", outputPath.buf());

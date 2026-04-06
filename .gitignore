@@ -1,4 +1,6 @@
 *.png
+*.bsi
+*.hdr
 *.bsa
 *.bsx
 .DS_Store
@@ -7,3 +9,4 @@
 bin/
 obj/
 lib/
+series*/

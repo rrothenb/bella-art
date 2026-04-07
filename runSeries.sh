@@ -1,5 +1,5 @@
-make series1
-for frame in $(seq 0 512)
+make series$1
+for frame in $(seq 1 $2)
 do
-  time ./run.sh "$frame" 300s
+  time ./run.sh $1 "$frame" $3 $4 $2 $5
 done

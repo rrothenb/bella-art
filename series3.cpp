@@ -30,12 +30,12 @@ static Double strength(Double x)
 
 static Vec3 outerKnot(Double t)
 {
-    return torusKnot(t, 1.0, 0.45 + sin(19 * s_globalT) * 0.25, 2, 3, circle);
+    return torusKnot(t, 1.0, 0.45 + sin(19 * s_globalT) * 0.05, 2, 3, circle);
 }
 
 static Vec3 innerKnot(Double t)
 {
-    return torusKnot(t, 1.0, 0.35 + sin(17 * s_globalT) * 0.25, 3, 2, outerKnot);
+    return torusKnot(t, 1.0, 0.75 + sin(17 * s_globalT) * 0.05, 3, 2, circle);
 }
 
 //=================================================================================================
@@ -77,20 +77,13 @@ static Vec3 uv2xyz(Double u, Double v, Double t)
 
 static Vec3 cameraPath(Double t)
 {
-    Vec3 v = {cos(3*t), cos(2*t), 1.0};
-    return v.unit() * (9 + cos(5*t));
+    return {0.1, 0.1, 10};
 }
 
+Double midX, midY, midZ;
 static Vec3 focusPath(Double t)
 {
-    Double pi      = dl::math::nc::pi;
-    Double v       = pi - cos(t) * pi;
-    Double minV    = sin(2*t) * pi/2 + pi/2;
-    Double maxV    = minV + sin(3*t) * pi/4 + pi/2;
-    Double minV2   = 0.75*minV + 0.25*maxV;
-    Double maxV2   = 0.25*minV + 0.75*maxV;
-    Double limitedV = minV2 + v / 2 / pi * (maxV2 - minV2);
-    return innerKnot(limitedV);
+    return {0, 0, 0};
 }
 
 //=================================================================================================
@@ -107,7 +100,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Vec3 focusPoint = focusPath(t);
 
     SLR2 cam;
-    cam.FOV = 5.0;   // narrow telephoto — enable frustum culling
+    cam.FOV = 30.0;  // match render FOV — controls frustum culling in generateMeshData
     cam.moveTo(cameraLoc);
     cam.lookAt(focusPoint);
 
@@ -124,7 +117,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     // series102.go uses minU/maxU/minV/maxV to restrict the mesh to the visible arc.
     //---------------------------------------------------------------------------------------------
     Int    numTriangles = 0;
-    Double totalWidth   = 0.0, totalHeight = 0.0;
+    Double totalWidth   = 0.0, totalHeight = 0.0, minX = -1000.0, maxX = 1000.0, minY = -1000.0, maxY = 1000.0, minZ = -1000.0, maxZ = 1000.0;
     Int    minU = 1000, maxU = 0, minV = 1000, maxV = 0;
 
     for (Int uIdx = 0; uIdx <= 1000; ++uIdx)
@@ -135,19 +128,25 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
                 index2radians(Double(uIdx),   1000),
                 index2radians(Double(vIdx),   1000), t);
 
-            if (!cam.invisible(vertex))
-            {
-                ++numTriangles;
-                Vec3 vL = uv2xyz(index2radians(Double(uIdx-1), 1000), index2radians(Double(vIdx),   1000), t);
-                Vec3 vB = uv2xyz(index2radians(Double(uIdx),   1000), index2radians(Double(vIdx-1), 1000), t);
-                totalWidth  += (vertex - vL).norm();
-                totalHeight += (vertex - vB).norm();
-                if (minU > uIdx) minU = uIdx;
-                if (minV > vIdx) minV = vIdx;
-                if (maxU < uIdx) maxU = uIdx;
-                if (maxV < vIdx) maxV = vIdx;
-            }
-        }
+            ++numTriangles;
+            Vec3 vL = uv2xyz(index2radians(Double(uIdx - 1), 1000), index2radians(Double(vIdx), 1000), t);
+            Vec3 vB = uv2xyz(index2radians(Double(uIdx), 1000), index2radians(Double(vIdx - 1), 1000), t);
+            totalWidth += (vertex - vL).norm();
+            totalHeight += (vertex - vB).norm();
+            if (minU > uIdx) minU = uIdx;
+            if (minV > vIdx) minV = vIdx;
+            if (maxU < uIdx) maxU = uIdx;
+            if (maxV < vIdx) maxV = vIdx;
+            if (minX > vL.x) minX = vL.x;
+            if (minY > vL.y) minY = vL.y;
+            if (minZ > vL.z) minZ = vL.z;
+            if (maxX < vL.x) maxX = vL.x;
+            if (maxY < vL.y) maxY = vL.y;
+            if (maxZ < vL.z) maxZ = vL.z;
+ 	        midX = (minX + maxX) / 2;
+ 	        midY = (minY + maxY) / 2;
+ 	        midZ = (minZ + maxZ) / 2;
+       }
     }
 
     if (numTriangles == 0)
@@ -282,7 +281,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     sensor["size"]        = Vec2{24.0, 24.0};
     sensor["tonemapping"] = tonemap;
 
-    Double fovDeg     = 5.0;
+    Double fovDeg     = 30.0;
     Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
 
@@ -295,7 +294,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto cameraNode = scene.createNode("camera", "cameraObj");
     cameraNode["sensor"]       = sensor;
     cameraNode["lens"]         = lens;
-    cameraNode["resolution"]   = Vec2{720.0, 720.0};
+    cameraNode["resolution"]   = Vec2{2400.0, 2400.0};
     cameraNode["exposureMode"] = String("aperture");
     cameraNode["ev"]           = Real(14);
 

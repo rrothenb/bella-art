@@ -1,4 +1,4 @@
-bin/Darwin/series3 --frame:$1
+bin/Darwin/series3 --frame:$1 --desiredtriangles:$3 --maxframes:$4
 /Applications/bella_cli.app/Contents/MacOS/bella_cli -i:series3_frame_$1.bsa &
 PID=$!
 sleep $2

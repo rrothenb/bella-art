@@ -1,9 +1,12 @@
-bin/Darwin/series1 --frame:$1
-/Applications/bella_cli.app/Contents/MacOS/bella_cli -i:series1_frame_$1.bsa &
+bin/Darwin/series$1 --frame:$2 --desiredtriangles:$4 --maxframes:$5
+/Applications/bella_cli.app/Contents/MacOS/bella_cli -i:series3_frame_$2.bsa -res:$6 &
 PID=$!
-sleep $2
+sleep $3
 kill -INT $PID
 wait $PID
-rm series1_frame_$1.bsa
-rm series1_frame_$1.bsi
-rm series1_env_$1.hdr
+rm series$1_frame_$2.bsa
+rm series$1_frame_$2.bsi
+rm series$1_env_$2.hdr
+rm -f series$1_blend_$2.hdr
+convert series3_frame_$2.png -auto-gamma series3_frame_$2.jpg
+rm series3_frame_$2.png

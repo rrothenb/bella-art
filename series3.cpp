@@ -77,13 +77,14 @@ static Vec3 uv2xyz(Double u, Double v, Double t)
 
 static Vec3 cameraPath(Double t)
 {
-    return {0.1, 0.1, 10};
+    return {0.1, 0.1, 1};
 }
 
 Double midX, midY, midZ;
 static Vec3 focusPath(Double t)
 {
-    return {0, 0, 0};
+    Double pi      = dl::math::nc::pi;
+    return uv2xyz((sin(2*t)+1)*pi,(sin(3*t)+1)*pi,t);
 }
 
 //=================================================================================================
@@ -100,7 +101,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Vec3 focusPoint = focusPath(t);
 
     SLR2 cam;
-    cam.FOV = 30.0;  // match render FOV — controls frustum culling in generateMeshData
+    cam.FOV = 20.0+10*sin(37*t);  // match render FOV — controls frustum culling in generateMeshData
     cam.moveTo(cameraLoc);
     cam.lookAt(focusPoint);
 
@@ -128,24 +129,26 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
                 index2radians(Double(uIdx),   1000),
                 index2radians(Double(vIdx),   1000), t);
 
-            ++numTriangles;
-            Vec3 vL = uv2xyz(index2radians(Double(uIdx - 1), 1000), index2radians(Double(vIdx), 1000), t);
-            Vec3 vB = uv2xyz(index2radians(Double(uIdx), 1000), index2radians(Double(vIdx - 1), 1000), t);
-            totalWidth += (vertex - vL).norm();
-            totalHeight += (vertex - vB).norm();
-            if (minU > uIdx) minU = uIdx;
-            if (minV > vIdx) minV = vIdx;
-            if (maxU < uIdx) maxU = uIdx;
-            if (maxV < vIdx) maxV = vIdx;
-            if (minX > vL.x) minX = vL.x;
-            if (minY > vL.y) minY = vL.y;
-            if (minZ > vL.z) minZ = vL.z;
-            if (maxX < vL.x) maxX = vL.x;
-            if (maxY < vL.y) maxY = vL.y;
-            if (maxZ < vL.z) maxZ = vL.z;
- 	        midX = (minX + maxX) / 2;
- 	        midY = (minY + maxY) / 2;
- 	        midZ = (minZ + maxZ) / 2;
+            if (!cam.invisible(vertex)) {
+                ++numTriangles;
+                Vec3 vL = uv2xyz(index2radians(Double(uIdx - 1), 1000), index2radians(Double(vIdx), 1000), t);
+                Vec3 vB = uv2xyz(index2radians(Double(uIdx), 1000), index2radians(Double(vIdx - 1), 1000), t);
+                totalWidth += (vertex - vL).norm();
+                totalHeight += (vertex - vB).norm();
+                if (minU > uIdx) minU = uIdx;
+                if (minV > vIdx) minV = vIdx;
+                if (maxU < uIdx) maxU = uIdx;
+                if (maxV < vIdx) maxV = vIdx;
+                if (minX > vL.x) minX = vL.x;
+                if (minY > vL.y) minY = vL.y;
+                if (minZ > vL.z) minZ = vL.z;
+                if (maxX < vL.x) maxX = vL.x;
+                if (maxY < vL.y) maxY = vL.y;
+                if (maxZ < vL.z) maxZ = vL.z;
+                midX = (minX + maxX) / 2;
+                midY = (minY + maxY) / 2;
+                midZ = (minZ + maxZ) / 2;
+            }
        }
     }
 
@@ -218,11 +221,19 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     auto meshNode = buildBellaMesh(scene, "surface_mesh", points, normals, uvs, polygons);
 
+    {
+        String objPath = String::format("%s/series3_mesh_%d.obj", cwdBuf, frameNumber);
+        if (writeMeshOBJ(objPath.buf(), points, normals, uvs, polygons))
+            logInfo("Wrote mesh OBJ: %s", objPath.buf());
+        else
+            logError("Failed to write mesh OBJ: %s", objPath.buf());
+    }
+
     //---------------------------------------------------------------------------------------------
     // Materials — two conductors blended via texture.
     //---------------------------------------------------------------------------------------------
-    Double rough1 = pow(10.0, sin(5*t) - 2.0);
-    Double rough2 = pow(10.0, cos(7*t) - 2.0);
+    Double rough1 = pow(10.0, sin(5*t) - 1.0);
+    Double rough2 = pow(10.0, cos(7*t) - 1.0);
 
     auto conductorMat1 = scene.createNode("conductor", "conductorMat1");
     conductorMat1["reflectance"] = Rgba{Float(cos(2*t)/2 + 0.5), Float(cos(3*t)/2 + 0.5), Float(cos(5*t)/2 + 0.5), 1.0f};
@@ -281,14 +292,14 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     sensor["size"]        = Vec2{24.0, 24.0};
     sensor["tonemapping"] = tonemap;
 
-    Double fovDeg     = 30.0;
+    Double fovDeg     = 20.0+10*sin(37*t);
     Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
 
     auto lens = scene.createNode("thinLens", "thinLens");
     lens["steps"].appendElement();
     lens["steps"][0]["focalLen"]  = Real(focalLenMm);
-    lens["steps"][0]["fStop"]     = Real(1e9);
+    lens["steps"][0]["fStop"]     = Real(16*pow(4,sin(31*t)));
     lens["steps"][0]["focusDist"] = Real(distance);
 
     auto cameraNode = scene.createNode("camera", "cameraObj");

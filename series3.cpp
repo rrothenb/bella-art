@@ -260,7 +260,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     meshMat["mixing"] = String("ordered");
     meshMat["materials"].appendElement();
     meshMat["materials"][0]["material"] = conductorMat2;
-    meshMat["materials"][0]["opacity"]  = Real(1);
+    meshMat["materials"][0]["opacity"]  = Real(0);
     meshMat["materials"].appendElement();
     meshMat["materials"][1]["material"] = conductorMat1;
     meshMat["materials"][1]["opacity"] |= blendTex.output("outAverage");

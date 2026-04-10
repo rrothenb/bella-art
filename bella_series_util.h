@@ -289,11 +289,17 @@ static inline ds::Vector<Double> buildBreakpoints(const ds::Vector<Double>& weig
 {
     Int N = (Int)weights.size();
 
+    // Invert weights: small d² → large inverse → more breakpoints nearby
+    ds::Vector<Double> invWeights;
+    invWeights.resize(N);
+    for (Int i = 0; i < N; ++i)
+        invWeights[i] = (weights[i] > 1e-10) ? 1.0 / weights[i] : 1e10;
+
     ds::Vector<Double> cdf;
     cdf.resize(N + 1);
     cdf[0] = 0.0;
     for (Int i = 0; i < N; ++i)
-        cdf[i + 1] = cdf[i] + weights[i];
+        cdf[i + 1] = cdf[i] + invWeights[i];
     Double total = cdf[N];
 
     ds::Vector<Double> breaks;

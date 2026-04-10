@@ -112,17 +112,28 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             distance, t);
 
     //---------------------------------------------------------------------------------------------
+    // Camera lens parameters — computed early so the coarse pass can use CoC weighting.
+    //---------------------------------------------------------------------------------------------
+    Double fovDeg     = 20.0 + 10 * sin(37 * t);
+    Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
+    Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
+    Double fStop      = 16 * pow(4, sin(31 * t));
+    Double pixelMm    = 24.0 / 2400.0;  // sensor size / resolution
+
+    //---------------------------------------------------------------------------------------------
     // Coarse pass: 500×500 sample grid.
     // Accumulates arc-lengths in u and v (to derive the nU/nV aspect ratio for square patches)
-    // and distance² from the camera (to build adaptive breakpoints — finer near camera).
+    // and CoC-weighted distance² from the camera (to build adaptive breakpoints — finer near
+    // camera and in-focus regions).  CoC blur factor penalises out-of-focus geometry so that
+    // vertices are concentrated where geometric detail is actually visible.
     //---------------------------------------------------------------------------------------------
     const Int coarseN = 500;
 
-    ds::Vector<Double> uArcLen, vArcLen, uDist2, vDist2;
+    ds::Vector<Double> uArcLen, vArcLen, uWeight, vWeight;
     uArcLen.resize(coarseN); vArcLen.resize(coarseN);
-    uDist2.resize(coarseN);  vDist2.resize(coarseN);
+    uWeight.resize(coarseN); vWeight.resize(coarseN);
     for (Int i = 0; i < coarseN; ++i)
-        uArcLen[i] = vArcLen[i] = uDist2[i] = vDist2[i] = 0.0;
+        uArcLen[i] = vArcLen[i] = uWeight[i] = vWeight[i] = 0.0;
 
     for (Int ui = 0; ui < coarseN; ++ui)
     {
@@ -136,10 +147,13 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             Vec3   pu = uv2xyz(u1, v,  t);
             Vec3   pv = uv2xyz(u,  v1, t);
             Double d  = (p - cameraLoc).norm();
+            Double coc = focalLenMm / fStop * abs(1.0 / distance - 1.0 / d);
+            Double blur = max(1.0, coc / pixelMm);
+            Double w  = d * d * blur;
             uArcLen[ui] += (pu - p).norm();
             vArcLen[vi] += (pv - p).norm();
-            uDist2[ui]  += d * d;
-            vDist2[vi]  += d * d;
+            uWeight[ui] += w;
+            vWeight[vi] += w;
         }
     }
 
@@ -153,8 +167,8 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     logInfo("Adaptive mesh: nU=%d nV=%d ratio=%f", nU, nV, ratio);
 
-    auto uBreaks = buildBreakpoints(uDist2, nU);
-    auto vBreaks = buildBreakpoints(vDist2, nV);
+    auto uBreaks = buildBreakpoints(uWeight, nU);
+    auto vBreaks = buildBreakpoints(vWeight, nV);
 
     //---------------------------------------------------------------------------------------------
     // Blend texture — evaluated at the adaptive breakpoint grid.
@@ -224,9 +238,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         logError("Failed to write blend map: %s", blendHdrPath.buf());
 
     auto blendTex = scene.createNode("fileTexture", "blendTex");
-    blendTex["dir"]  = String(cwdBuf);
-    blendTex["file"] = blendFile;
-    blendTex["ext"]  = String(".hdr");
+    blendTex["dir"]           = String(cwdBuf);
+    blendTex["file"]          = blendFile;
+    blendTex["ext"]           = String(".hdr");
+    blendTex["interpolation"] = String("bilinear");
 
     // blendMaterial: conductorMat2 base, conductorMat1 overlay.
     auto meshMat = scene.createNode("blendMaterial", "meshMaterial");
@@ -265,14 +280,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     sensor["size"]        = Vec2{24.0, 24.0};
     sensor["tonemapping"] = tonemap;
 
-    Double fovDeg     = 20.0+10*sin(37*t);
-    Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
-    Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
-
     auto lens = scene.createNode("thinLens", "thinLens");
     lens["steps"].appendElement();
     lens["steps"][0]["focalLen"]  = Real(focalLenMm);
-    lens["steps"][0]["fStop"]     = Real(16*pow(4,sin(31*t)));
+    lens["steps"][0]["fStop"]     = Real(fStop);
     lens["steps"][0]["focusDist"] = Real(distance);
 
     auto cameraNode = scene.createNode("camera", "cameraObj");

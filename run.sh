@@ -10,4 +10,4 @@ rm series$1_env_$2.hdr
 rm -f series$1_blend_$2.hdr
 convert series3_frame_$2.png -auto-gamma series3_frame_$2.jpg
 rm series3_frame_$2.png
-rm series3_mesh_$2.obj
+mv series3_mesh_$2.obj /tmp

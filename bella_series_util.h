@@ -279,87 +279,99 @@ static inline Vec3 pathWrapper(Double u, Double v, Double r, Vec3(*path)(Double)
 }
 
 //=================================================================================================
-// Mesh generation — second pass.
+// Build adaptive breakpoints from distance-squared weights.
+// weights[i] is the accumulated d² at coarse sample i (higher = farther from camera).
+// Returns n angles in [0, 2π] with larger intervals where the surface is farther away,
+// so nearer regions receive proportionally finer sampling.
+//=================================================================================================
+
+static inline ds::Vector<Double> buildBreakpoints(const ds::Vector<Double>& weights, Int n)
+{
+    Int N = (Int)weights.size();
+
+    ds::Vector<Double> cdf;
+    cdf.resize(N + 1);
+    cdf[0] = 0.0;
+    for (Int i = 0; i < N; ++i)
+        cdf[i + 1] = cdf[i] + weights[i];
+    Double total = cdf[N];
+
+    ds::Vector<Double> breaks;
+    breaks.resize(n);
+    for (Int k = 0; k < n; ++k)
+    {
+        Double target = (n > 1) ? (Double(k) / Double(n - 1) * total) : 0.0;
+        Int lo = 0, hi = N - 1;
+        while (hi - lo > 1)
+        {
+            Int mid = (lo + hi) / 2;
+            if (cdf[mid] <= target) lo = mid; else hi = mid;
+        }
+        Double frac = 0.0;
+        if (cdf[lo + 1] > cdf[lo])
+            frac = (target - cdf[lo]) / (cdf[lo + 1] - cdf[lo]);
+        breaks[k] = (Double(lo) + frac) / Double(N) * dl::math::nc::pi * 2.0;
+    }
+    return breaks;
+}
+
+//=================================================================================================
+// Mesh generation.
 // Builds vertex, normal, UV and polygon arrays from a UV parametric surface.
-// Uses offset-based indexing so [startU..endU] × [startV..endV] can be any sub-range.
+// uBreaks/vBreaks are non-uniform angle sequences produced by buildBreakpoints —
+// finer near the camera, coarser farther away.  No frustum culling is performed;
+// Bella's path tracer handles off-screen geometry correctly.
 // Bella mesh requires float (f32) — pos3d/vec3d causes silent render failure.
 //=================================================================================================
 
 static void generateMeshData(
     Vec3(*uv2xyz)(Double, Double, Double),
-    SLR2&              cam,
-    Int nU,  Int nV,
-    Int startUIndex, Int endUIndex,
-    Int startVIndex, Int endVIndex,
-    Double             t,
-    ds::Vector<Pos3f>& points,
-    ds::Vector<Vec3f>& normals,
-    ds::Vector<Vec2f>& uvs,
-    ds::Vector<Vec4u>& polygons)
+    const ds::Vector<Double>& uBreaks,
+    const ds::Vector<Double>& vBreaks,
+    Double                    t,
+    ds::Vector<Pos3f>&        points,
+    ds::Vector<Vec3f>&        normals,
+    ds::Vector<Vec2f>&        uvs,
+    ds::Vector<Vec4u>&        polygons)
 {
-    Int dV = endVIndex - startVIndex + 2;
-    Int dU = endUIndex - startUIndex + 2;
+    Int    nU    = (Int)uBreaks.size();
+    Int    nV    = (Int)vBreaks.size();
+    Double delta = 1e-3;
 
-    ds::Vector<Int32> vertexIndices;
-    vertexIndices.resize(dU * dV);
-    for (Int i = 0; i < dU * dV; ++i) vertexIndices[i] = Int32(-1);
-
-    Int numVertices = 0;
-
-    for (Int uIndex = startUIndex; uIndex <= endUIndex; ++uIndex)
+    for (Int ui = 0; ui < nU; ++ui)
+    for (Int vi = 0; vi < nV; ++vi)
     {
-        for (Int vIndex = startVIndex; vIndex <= endVIndex; ++vIndex)
-        {
-            Double u      = index2radians(Double(uIndex), nU);
-            Double v      = index2radians(Double(vIndex), nV);
-            Vec3   vertex = uv2xyz(u, v, t);
+        Double u      = uBreaks[ui];
+        Double v      = vBreaks[vi];
+        Vec3   vertex = uv2xyz(u, v, t);
+        Vec3   tanU   = uv2xyz(u + delta, v, t) - uv2xyz(u - delta, v, t);
+        Vec3   tanV   = uv2xyz(u, v + delta, t) - uv2xyz(u, v - delta, t);
+        Vec3   nrm    = tanV.cross(tanU);
+        Vec3   normal = (nrm.norm() > 1e-10) ? nrm.unit() : vertex.unit();
 
-            Int32 vertexIdx = -1;
-            if (!cam.invisible(vertex))
-            {
-                Double delta = 0.1;
-                Vec3 left  = uv2xyz(index2radians(Double(uIndex) - delta, nU), v, t);
-                Vec3 right = uv2xyz(index2radians(Double(uIndex) + delta, nU), v, t);
-                Vec3 up    = uv2xyz(u, index2radians(Double(vIndex) + delta, nV), t);
-                Vec3 down  = uv2xyz(u, index2radians(Double(vIndex) - delta, nV), t);
+        Double uvU = (nU > 1) ? Double(ui) / Double(nU - 1) : 0.0;
+        Double uvV = (nV > 1) ? Double(vi) / Double(nV - 1) : 0.0;
 
-                Vec3 tanU      = right - left;
-                Vec3 tanV      = up - down;
-                Vec3 normalRaw = tanV.cross(tanU);
-                Vec3 normal    = (normalRaw.norm() > 1e-10) ? normalRaw.unit() : vertex.unit();
-
-                Double uvU = Double(uIndex - startUIndex) / Double(max(Int(1), endUIndex - startUIndex));
-                Double uvV = Double(vIndex - startVIndex) / Double(max(Int(1), endVIndex - startVIndex));
-
-                vertexIdx = numVertices++;
-                points.push_back(Pos3f{Float(vertex.x), Float(vertex.y), Float(vertex.z)});
-                normals.push_back(Vec3f{Float(normal.x), Float(normal.y), Float(normal.z)});
-                uvs.push_back(Vec2f{Float(uvU), Float(uvV)});
-            }
-            vertexIndices[(uIndex - startUIndex) * dV + (vIndex - startVIndex)] = vertexIdx;
-        }
+        points.push_back(Pos3f{Float(vertex.x), Float(vertex.y), Float(vertex.z)});
+        normals.push_back(Vec3f{Float(normal.x), Float(normal.y), Float(normal.z)});
+        uvs.push_back(Vec2f{Float(uvU), Float(uvV)});
     }
 
     Int numFaces = 0;
-    for (Int vIndex = startVIndex; vIndex < endVIndex; ++vIndex)
+    for (Int ui = 0; ui < nU - 1; ++ui)
+    for (Int vi = 0; vi < nV - 1; ++vi)
     {
-        for (Int uIndex = startUIndex; uIndex < endUIndex; ++uIndex)
-        {
-            Int32 topRight = vertexIndices[(uIndex     - startUIndex) * dV + (vIndex     - startVIndex)];
-            Int32 topLeft  = vertexIndices[(uIndex + 1 - startUIndex) * dV + (vIndex     - startVIndex)];
-            Int32 botRight = vertexIndices[(uIndex     - startUIndex) * dV + (vIndex + 1 - startVIndex)];
-            Int32 botLeft  = vertexIndices[(uIndex + 1 - startUIndex) * dV + (vIndex + 1 - startVIndex)];
+        UInt32 topRight = UInt32( ui      * nV + vi    );
+        UInt32 topLeft  = UInt32((ui + 1) * nV + vi    );
+        UInt32 botRight = UInt32( ui      * nV + vi + 1);
+        UInt32 botLeft  = UInt32((ui + 1) * nV + vi + 1);
 
-            if (topRight == -1 || topLeft == -1 || botRight == -1 || botLeft == -1)
-                continue;
-
-            polygons.push_back(Vec4u{UInt32(topRight), UInt32(botLeft),  UInt32(topLeft),  UInt32(topLeft)});
-            polygons.push_back(Vec4u{UInt32(topRight), UInt32(botRight), UInt32(botLeft),  UInt32(botLeft)});
-            numFaces += 2;
-        }
+        polygons.push_back(Vec4u{topRight, botLeft,  topLeft,  topLeft });
+        polygons.push_back(Vec4u{topRight, botRight, botLeft,  botLeft });
+        numFaces += 2;
     }
 
-    logInfo("Generated %d vertices and %d faces", numVertices, numFaces);
+    logInfo("Generated %d vertices and %d faces", Int(points.size()), numFaces);
 }
 
 //=================================================================================================

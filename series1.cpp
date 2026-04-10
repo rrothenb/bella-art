@@ -131,7 +131,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Int nU = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio) * 500);
     Int nV = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) / ratio) * 500);
 
-    while (nV > 15000)
+    while (nV > 25000)
     {
         ratio *= 10;
         nU = Int(sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio) * 500);

@@ -80,7 +80,6 @@ static Vec3 cameraPath(Double t)
     return {0.1, 0.1, 1};
 }
 
-Double midX, midY, midZ;
 static Vec3 focusPath(Double t)
 {
     Double pi      = dl::math::nc::pi;
@@ -101,7 +100,6 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Vec3 focusPoint = focusPath(t);
 
     SLR2 cam;
-    cam.FOV = 20.0+10*sin(37*t);  // match render FOV — controls frustum culling in generateMeshData
     cam.moveTo(cameraLoc);
     cam.lookAt(focusPoint);
 
@@ -114,91 +112,67 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             distance, t);
 
     //---------------------------------------------------------------------------------------------
-    // First pass: 1001×1001 sample grid — count visible triangles and find UV bounds.
-    // series102.go uses minU/maxU/minV/maxV to restrict the mesh to the visible arc.
+    // Coarse pass: 500×500 sample grid.
+    // Accumulates arc-lengths in u and v (to derive the nU/nV aspect ratio for square patches)
+    // and distance² from the camera (to build adaptive breakpoints — finer near camera).
     //---------------------------------------------------------------------------------------------
-    Int    numTriangles = 0;
-    Double totalWidth   = 0.0, totalHeight = 0.0, minX = -1000.0, maxX = 1000.0, minY = -1000.0, maxY = 1000.0, minZ = -1000.0, maxZ = 1000.0;
-    Int    minU = 1000, maxU = 0, minV = 1000, maxV = 0;
+    const Int coarseN = 500;
 
-    for (Int uIdx = 0; uIdx <= 1000; ++uIdx)
+    ds::Vector<Double> uArcLen, vArcLen, uDist2, vDist2;
+    uArcLen.resize(coarseN); vArcLen.resize(coarseN);
+    uDist2.resize(coarseN);  vDist2.resize(coarseN);
+    for (Int i = 0; i < coarseN; ++i)
+        uArcLen[i] = vArcLen[i] = uDist2[i] = vDist2[i] = 0.0;
+
+    for (Int ui = 0; ui < coarseN; ++ui)
     {
-        for (Int vIdx = 0; vIdx <= 1000; ++vIdx)
+        for (Int vi = 0; vi < coarseN; ++vi)
         {
-            Vec3 vertex = uv2xyz(
-                index2radians(Double(uIdx),   1000),
-                index2radians(Double(vIdx),   1000), t);
-
-            if (!cam.invisible(vertex)) {
-                ++numTriangles;
-                Vec3 vL = uv2xyz(index2radians(Double(uIdx - 1), 1000), index2radians(Double(vIdx), 1000), t);
-                Vec3 vB = uv2xyz(index2radians(Double(uIdx), 1000), index2radians(Double(vIdx - 1), 1000), t);
-                totalWidth += (vertex - vL).norm();
-                totalHeight += (vertex - vB).norm();
-                if (minU > uIdx) minU = uIdx;
-                if (minV > vIdx) minV = vIdx;
-                if (maxU < uIdx) maxU = uIdx;
-                if (maxV < vIdx) maxV = vIdx;
-                if (minX > vL.x) minX = vL.x;
-                if (minY > vL.y) minY = vL.y;
-                if (minZ > vL.z) minZ = vL.z;
-                if (maxX < vL.x) maxX = vL.x;
-                if (maxY < vL.y) maxY = vL.y;
-                if (maxZ < vL.z) maxZ = vL.z;
-                midX = (minX + maxX) / 2;
-                midY = (minY + maxY) / 2;
-                midZ = (minZ + maxZ) / 2;
-            }
-       }
+            Double u  = index2radians(Double(ui),     coarseN);
+            Double v  = index2radians(Double(vi),     coarseN);
+            Double u1 = index2radians(Double(ui + 1), coarseN);
+            Double v1 = index2radians(Double(vi + 1), coarseN);
+            Vec3   p  = uv2xyz(u,  v,  t);
+            Vec3   pu = uv2xyz(u1, v,  t);
+            Vec3   pv = uv2xyz(u,  v1, t);
+            Double d  = (p - cameraLoc).norm();
+            uArcLen[ui] += (pu - p).norm();
+            vArcLen[vi] += (pv - p).norm();
+            uDist2[ui]  += d * d;
+            vDist2[vi]  += d * d;
+        }
     }
 
-    if (numTriangles == 0)
-    {
-        logError("Frame %d: no visible triangles — skipping", frameNumber);
-        return;
-    }
+    Double totalArcU = 0.0, totalArcV = 0.0;
+    for (Int i = 0; i < coarseN; ++i) { totalArcU += uArcLen[i]; totalArcV += vArcLen[i]; }
+    Double ratio = (totalArcV > 1e-10) ? totalArcU / totalArcV : 1.0;
+    ratio = max(0.001, min(1000.0, ratio));
 
-    Double ratio = totalWidth / totalHeight;
-    if (ratio < 0.001) ratio = 0.001;
-    if (ratio > 1000.0) ratio = 1000.0;
+    Int nU = max(Int(10), min(Int(10000), Int(sqrt(Double(desiredTriangles) / 2.0 * ratio))));
+    Int nV = max(Int(10), min(Int(10000), Int(sqrt(Double(desiredTriangles) / 2.0 / ratio))));
 
-    Double scaleU = sqrt(Double(desiredTriangles) / Double(numTriangles * 2) * ratio);
-    Double scaleV = sqrt(Double(desiredTriangles) / Double(numTriangles * 2) / ratio);
+    logInfo("Adaptive mesh: nU=%d nV=%d ratio=%f", nU, nV, ratio);
 
-    Int nU          = Int(scaleU * 1000);
-    Int nV          = Int(scaleV * 1000);
-    Int startUIndex = Int(scaleU * Double(minU));
-    Int endUIndex   = Int(scaleU * Double(maxU));
-    Int startVIndex = Int(scaleV * Double(minV));
-    Int endVIndex   = Int(scaleV * Double(maxV));
-
-    nU = max(Int(10), min(nU, Int(5000)));
-    nV = max(Int(10), min(nV, Int(5000)));
-    if (endUIndex >= nU) endUIndex = nU - 1;
-    if (endVIndex >= nV) endVIndex = nV - 1;
-    if (startUIndex >= endUIndex) startUIndex = 0;
-    if (startVIndex >= endVIndex) startVIndex = 0;
-
-    logInfo("Mesh: nU=%d nV=%d startU=%d endU=%d startV=%d endV=%d ratio=%f triangles=%d",
-            nU, nV, startUIndex, endUIndex, startVIndex, endVIndex, ratio, numTriangles);
+    auto uBreaks = buildBreakpoints(uDist2, nU);
+    auto vBreaks = buildBreakpoints(vDist2, nV);
 
     //---------------------------------------------------------------------------------------------
-    // Blend texture — computed over the visible UV sub-range.
+    // Blend texture — evaluated at the adaptive breakpoint grid.
     // 1 - pow(spow(texture,...)/2+.5, pow(4, cos(17t)))
     //---------------------------------------------------------------------------------------------
     char cwdBuf[1024];
     getcwd(cwdBuf, sizeof(cwdBuf));
 
-    Int blendW = max(Int(1), endUIndex - startUIndex);
-    Int blendH = max(Int(1), endVIndex - startVIndex);
+    Int blendW = max(Int(1), nU - 1);
+    Int blendH = max(Int(1), nV - 1);
 
     ds::Vector<float> blendRgb;
-    for (Int vIndex = startVIndex; vIndex < endVIndex; ++vIndex)
+    for (Int vi = 0; vi < nV - 1; ++vi)
     {
-        for (Int uIndex = startUIndex; uIndex < endUIndex; ++uIndex)
+        for (Int ui = 0; ui < nU - 1; ++ui)
         {
-            Double u  = index2radians(Double(uIndex), nU);
-            Double v  = index2radians(Double(vIndex), nV);
+            Double u  = uBreaks[ui];
+            Double v  = vBreaks[vi];
             Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(13*t))) / 2.0 + 0.5,
                                   pow(4, cos(17*t)));
             float bvf = Float(bv);
@@ -209,15 +183,14 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     }
 
     //---------------------------------------------------------------------------------------------
-    // Second pass: generate mesh.
+    // Generate mesh using adaptive breakpoints.
     //---------------------------------------------------------------------------------------------
     ds::Vector<Pos3f> points;
     ds::Vector<Vec3f> normals;
     ds::Vector<Vec2f> uvs;
     ds::Vector<Vec4u> polygons;
 
-    generateMeshData(uv2xyz, cam, nU, nV, startUIndex, endUIndex, startVIndex, endVIndex,
-                     t, points, normals, uvs, polygons);
+    generateMeshData(uv2xyz, uBreaks, vBreaks, t, points, normals, uvs, polygons);
 
     auto meshNode = buildBellaMesh(scene, "surface_mesh", points, normals, uvs, polygons);
 

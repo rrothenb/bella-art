@@ -1,7 +1,6 @@
-// Bella Series 3 Generator - Port of series102.go
-// Animated torus-knot tube surfaces for the Bella renderer
-
 #include "bella_series_util.h"
+
+static const std::string name = std::string(__FILE__).substr(0, std::string(__FILE__).rfind(".cpp"));
 
 //=================================================================================================
 // Global animation time.
@@ -214,7 +213,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     auto meshNode = buildBellaMesh(scene, "surface_mesh", points, normals, uvs, polygons);
 
     {
-        String objPath = String::format("%s/series3_mesh_%d.obj", cwdBuf, frameNumber);
+        String objPath = String::format("%s/%s_mesh_%d.obj", cwdBuf, &name, frameNumber);
         if (writeMeshOBJ(objPath.buf(), points, normals, uvs, polygons))
             logInfo("Wrote mesh OBJ: %s", objPath.buf());
         else
@@ -235,7 +234,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     conductorMat2["reflectance"] = Rgba{Float(0.5 - cos(13*t)/2), Float(0.5 - cos(11*t)/2), Float(0.5 - cos(7*t)/2), 1.0f};
     conductorMat2["roughness"]   = Real(rough2);
 
-    String blendFile    = String::format("series3_blend_%d", frameNumber);
+    String blendFile    = String::format("%s_blend_%d", &name, frameNumber);
     String blendHdrPath = String::format("%s/%s.hdr", cwdBuf, blendFile.buf());
     if (writeHDR(blendHdrPath.buf(), blendW, blendH, &blendRgb[0]))
         logInfo("Wrote blend map: %s", blendHdrPath.buf());
@@ -331,7 +330,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     }
 
     String envDir(cwdBuf);
-    String envFile    = String::format("series3_env_%d", frameNumber);
+    String envFile    = String::format("%s_env_%d", &name, frameNumber);
     String envHdrPath = String::format("%s/%s.hdr", cwdBuf, envFile.buf());
     if (writeHDR(envHdrPath.buf(), envSize, envSize, &envRgb[0]))
         logInfo("Wrote env map: %s", envHdrPath.buf());
@@ -401,7 +400,7 @@ int DL_main(Args& args)
 
     renderSurfaces(scene, frame, pixels, maxSubdivisions, dt, desiredTriangles);
 
-    String outputPath = String::format("series3_frame_%d.bsa", frame);
+    String outputPath = String::format("%s_frame_%d.bsa", &name, frame);
     if (scene.write(outputPath))
         logInfo("Successfully wrote scene to %s", outputPath.buf());
     else

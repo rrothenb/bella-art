@@ -114,6 +114,10 @@ SERIES3_OBJS = series3.o
 SERIES3_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES3_OBJS))
 SERIES3_OUTPUT = $(BINDIR)/series3
 
+SERIES4_OBJS = series4.o
+SERIES4_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES4_OBJS))
+SERIES4_OUTPUT = $(BINDIR)/series4
+
 CREATE_SIMPLE_OBJS = create_simple.o
 CREATE_SIMPLE_OBJ = $(patsubst %,$(OBJDIR)/%,$(CREATE_SIMPLE_OBJS))
 CREATE_SIMPLE_OUTPUT = $(BINDIR)/create_simple
@@ -158,6 +162,13 @@ $(SERIES3_OUTPUT): $(SERIES3_OBJ)
 	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
 	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
 
+$(SERIES4_OUTPUT): $(SERIES4_OBJ)
+	@mkdir -p $(@D)
+	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
+	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
+	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
+	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
+
 $(CREATE_SIMPLE_OUTPUT): $(CREATE_SIMPLE_OBJ)
 	@mkdir -p $(@D)
 	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
@@ -186,6 +197,7 @@ clean:
 	rm -f $(SERIES1_OUTPUT)
 	rm -f $(SERIES2_OUTPUT)
 	rm -f $(SERIES3_OUTPUT)
+	rm -f $(SERIES4_OUTPUT)
 	rm -f $(CREATE_SIMPLE_OUTPUT)
 	rm -f $(TEST_BSA_OUTPUT)
 	rm -f $(BINDIR)/$(SDKFNAME)
@@ -200,6 +212,9 @@ series2: $(SERIES2_OUTPUT)
 
 .PHONY: series3
 series3: $(SERIES3_OUTPUT)
+
+.PHONY: series4
+series4: $(SERIES4_OUTPUT)
 
 .PHONY: create_simple
 create_simple: $(CREATE_SIMPLE_OUTPUT)

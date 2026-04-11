@@ -1,10 +1,12 @@
 #include "bella_series_util.h"
 
+constexpr int primes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283};
+
 static const std::string name = std::string(__FILE__).substr(0, std::string(__FILE__).rfind(".cpp"));
 
 //=================================================================================================
 // Global animation time.
-// outerKnot/innerKnot are called as bare function pointers from pathWrapper, so they can't take
+// knot are called as bare function pointers from pathWrapper, so they can't take
 // a 't' parameter for the outer knot radius.  s_globalT is set once per frame before any shape
 // evaluation.
 //=================================================================================================
@@ -24,17 +26,12 @@ static Double strength(Double x)
 //=================================================================================================
 // Torus-knot shape functions (series102.go).
 // circle, torusKnot, pathWrapper come from the shared header.
-// outerKnot/innerKnot are series-specific — they thread s_globalT via the global.
+// knot are series-specific — they thread s_globalT via the global.
 //=================================================================================================
 
-static Vec3 outerKnot(Double t)
+static Vec3 knot(Double t)
 {
-    return torusKnot(t, 1.0, 0.45 + sin(19 * s_globalT) * 0.05, 2, 3, circle);
-}
-
-static Vec3 innerKnot(Double t)
-{
-    return torusKnot(t, 1.0, 0.75 + sin(17 * s_globalT) * 0.05, 3, 2, circle);
+    return torusKnot(t, 1.0, 0.75 + sin(primes[0] * s_globalT) * 0.05, 3, 2, circle);
 }
 
 //=================================================================================================
@@ -46,34 +43,37 @@ static Double texture(Double u, Double v, Double t)
     Double vs = v * 10.0;
     return sin(
         3*u + 5*vs
-        + strength(1.7 + 19*t) * sin(2*u  + strength(0.7 + 7*t) * sin(3*u  + strength(0.3 + 3*t) * sin(5*u  - 7*vs) * sin(11*u + 3*vs)))
-        + strength(1.5 + 17*t) * sin(7*vs + strength(0.5 + 5*t) * sin(5*vs + strength(0.1 + 2*t) * sin(7*u  - 11*vs) * sin(13*u + 5*vs)))
-        + strength(1.3 + 13*t) * sin(5*u + 7*vs)
-        + strength(1.1 + 11*t) * sin(17*u) * sin(19*vs)
+        + strength(1.7 + primes[1]*t) * sin(2*u  + strength(0.7 + primes[5]*t) * sin(3*u  + strength(0.3 + 3*t) * sin(5*u  - 7*vs) * sin(11*u + 3*vs)))
+        + strength(1.5 + primes[2]*t) * sin(7*vs + strength(0.5 + primes[6]*t) * sin(5*vs + strength(0.1 + 2*t) * sin(7*u  - 11*vs) * sin(13*u + 5*vs)))
+        + strength(1.3 + primes[3]*t) * sin(5*u + 7*vs)
+        + strength(1.1 + primes[4]*t) * sin(17*u) * sin(19*vs)
     );
 }
 
-// Tube surface wrapped around innerKnot.
+// Tube surface wrapped around knot.
 // limitedV restricts the tube to an animated arc of the knot path.
+// TODO refactor so I can do this for both the location of the point on the surface and the location of the center of the tube
 static Vec3 uv2xyz(Double u, Double v, Double t)
 {
     Double pi      = dl::math::nc::pi;
-    Double minV    = sin(2*t) * pi/2 + pi/2;
-    Double maxV    = minV + sin(3*t) * pi/4 + pi/2;
+    Double minV    = sin(primes[7]*t) * pi/2 + pi/2;
+    Double maxV    = minV + sin(primes[8]*t) * pi/4 + pi/2;
     Double limitedV = minV + v / 2 / pi * (maxV - minV);
-    Double ridges  = 20 + sin(7*t) * 15;
-    Double a       = 1 - spow(cos(floor(ridges) * v), pow(10, -cos(5*t))) * 0.5;
-    Double bv      = pow(spow(texture(u, v, t), pow(2, cos(13*t))) / 2 + 0.5,
-                         pow(2, cos(17*t))) * sin(23*t);
-    Double rParam  = 0.25 * spow(sin(v/2), pow(10, sin(17*t))) * a * (1 + 0.1 * bv);
-    Double vParam  = limitedV + pow(a - 0.5, pow(10, sin(11*t))) / (15 + sin(13*t) * 5);
-    return pathWrapper(u, vParam, rParam, innerKnot);
+    Double ridges  = 20 + sin(primes[9]*t) * 15;
+    Double a       = 1 - spow(cos(floor(ridges) * v), pow(10, -cos(primes[10]*t))) * 0.5;
+    Double bv      = pow(spow(texture(u, v, t), pow(2, cos(primes[11]*t))) / 2 + 0.5,
+                         pow(2, cos(primes[12]*t))) * sin(primes[13]*t);
+    Double rParam  = 0.25 * spow(sin(v/2), pow(10, sin(primes[14]*t))) * a * (1 + 0.1 * bv);
+    Double vParam  = limitedV + pow(a - 0.5, pow(10, sin(primes[15]*t))) / (15 + sin(primes[16]*t) * 5);
+    return pathWrapper(u, vParam, rParam, knot);
 }
 
 //=================================================================================================
 // Camera and focus paths (series102.go).
 //=================================================================================================
 
+// TODO same side as focusPath and postioned to maximize screen filling maybe?
+// TODO this may be harder to do than I realize
 static Vec3 cameraPath(Double t)
 {
     return {0.1, 0.1, 1};
@@ -82,9 +82,11 @@ static Vec3 cameraPath(Double t)
 static Vec3 focusPath(Double t)
 {
     Double pi      = dl::math::nc::pi;
-    return uv2xyz((sin(2*t)+1)*pi,(sin(3*t)+1)*pi,t);
+    return uv2xyz((sin(primes[17]*t)+1)*pi,(sin(primes[18]*t)+1)*pi,t);
 }
 
+// TODO maybe add focus distance which is closer (or farther?) than the center of the image?
+// TODO basically some way to set the focal point of the image elsewhere (1/3, 2/3?)
 //=================================================================================================
 // Main rendering function.
 //=================================================================================================
@@ -113,10 +115,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     //---------------------------------------------------------------------------------------------
     // Camera lens parameters — computed early so the coarse pass can use CoC weighting.
     //---------------------------------------------------------------------------------------------
-    Double fovDeg     = 20.0 + 10 * sin(37 * t);
+    Double fovDeg     = 20.0 + 10 * sin(primes[19] * t);
     Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
-    Double fStop      = 16 * pow(4, sin(31 * t));
+    Double fStop      = 16 * pow(4, sin(primes[20] * t));
     Double pixelMm    = 24.0 / 2400.0;  // sensor size / resolution
 
     //---------------------------------------------------------------------------------------------
@@ -191,8 +193,8 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         {
             Double u  = uBreaks[ui];
             Double v  = vBreaks[vi];
-            Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(13*t))) / 2.0 + 0.5,
-                                  pow(4, cos(17*t)));
+            Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(primes[21]*t))) / 2.0 + 0.5,
+                                  pow(4, cos(primes[22]*t)));
             float bvf = Float(bv);
             blendRgb.push_back(bvf);
             blendRgb.push_back(bvf);
@@ -223,15 +225,15 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     //---------------------------------------------------------------------------------------------
     // Materials — two conductors blended via texture.
     //---------------------------------------------------------------------------------------------
-    Double rough1 = pow(10.0, sin(5*t) - 1.0);
-    Double rough2 = pow(10.0, cos(7*t) - 1.0);
+    Double rough1 = pow(10.0, sin(primes[23]*t) - 1.0);
+    Double rough2 = pow(10.0, cos(primes[24]*t) - 1.0);
 
     auto conductorMat1 = scene.createNode("conductor", "conductorMat1");
-    conductorMat1["reflectance"] = Rgba{Float(cos(2*t)/2 + 0.5), Float(cos(3*t)/2 + 0.5), Float(cos(5*t)/2 + 0.5), 1.0f};
+    conductorMat1["reflectance"] = Rgba{Float(cos(primes[25]*t)/2 + 0.5), Float(cos(primes[26]*t)/2 + 0.5), Float(cos(primes[27]*t)/2 + 0.5), 1.0f};
     conductorMat1["roughness"]   = Real(rough1);
 
     auto conductorMat2 = scene.createNode("conductor", "conductorMat2");
-    conductorMat2["reflectance"] = Rgba{Float(0.5 - cos(13*t)/2), Float(0.5 - cos(11*t)/2), Float(0.5 - cos(7*t)/2), 1.0f};
+    conductorMat2["reflectance"] = Rgba{Float(0.5 - cos(primes[28]*t)/2), Float(0.5 - cos(primes[29]*t)/2), Float(0.5 - cos(primes[30]*t)/2), 1.0f};
     conductorMat2["roughness"]   = Real(rough2);
 
     String blendFile    = String::format("%s_blend_%d", &name, frameNumber);
@@ -345,9 +347,9 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     // Animated 3-axis rotation matching Mitsuba's sequential X→Y→Z extrinsic rotations.
     {
-        Double ax = sin(19*t) * 45.0 * dl::math::nc::pi / 180.0;
-        Double ay = sin(23*t) * 45.0 * dl::math::nc::pi / 180.0;
-        Double az = sin(29*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double ax = sin(primes[31]*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double ay = sin(primes[32]*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double az = sin(primes[33]*t) * 45.0 * dl::math::nc::pi / 180.0;
         Double cx = cos(ax), sx = sin(ax);
         Double cy = cos(ay), sy = sin(ay);
         Double cz = cos(az), sz = sin(az);

@@ -162,8 +162,13 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Double ratio = (totalArcV > 1e-10) ? totalArcU / totalArcV : 1.0;
     ratio = max(0.001, min(1000.0, ratio));
 
-    Int nU = max(Int(10), min(Int(10000), Int(sqrt(Double(desiredTriangles) / 2.0 * ratio))));
-    Int nV = max(Int(10), min(Int(10000), Int(sqrt(Double(desiredTriangles) / 2.0 / ratio))));
+    const Int minDim = 10;
+    Int nU = Int(sqrt(Double(desiredTriangles) / 2.0 * ratio));
+    Int nV = Int(sqrt(Double(desiredTriangles) / 2.0 / ratio));
+
+    // Redistribute: if one dimension falls below the minimum, give the other all the budget.
+    if (nU < minDim) { nU = minDim; nV = max(minDim, Int(Double(desiredTriangles) / 2.0 / Double(nU))); }
+    if (nV < minDim) { nV = minDim; nU = max(minDim, Int(Double(desiredTriangles) / 2.0 / Double(nV))); }
 
     logInfo("Adaptive mesh: nU=%d nV=%d ratio=%f", nU, nV, ratio);
 

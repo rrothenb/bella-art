@@ -225,6 +225,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Int blendH = max(Int(1), nV - 1);
 
     ds::Vector<float> blendRgb;
+    ds::Vector<float> blendInvRgb;
     for (Int vi = 0; vi < nV - 1; ++vi)
     {
         for (Int ui = 0; ui < nU - 1; ++ui)
@@ -233,10 +234,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             Double v  = vBreaks[vi];
             Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(primes[21]*t))) / 2.0 + 0.5,
                                   pow(4, cos(primes[22]*t)));
-            float bvf = Float(bv);
-            blendRgb.push_back(bvf);
-            blendRgb.push_back(bvf);
-            blendRgb.push_back(bvf);
+            float bvf    = 100*Float(bv);
+            float bvfInv = 100 - bvf;
+            blendRgb.push_back(bvf);    blendRgb.push_back(bvf);    blendRgb.push_back(bvf);
+            blendInvRgb.push_back(bvfInv); blendInvRgb.push_back(bvfInv); blendInvRgb.push_back(bvfInv);
         }
     }
 
@@ -261,7 +262,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     }
 
     //---------------------------------------------------------------------------------------------
-    // Materials — two conductors blended via texture.
+    // Materials — conductor + glass blended via texture.
     //---------------------------------------------------------------------------------------------
     Double rough1 = pow(10.0, sin(primes[23]*t) - 1.0);
     Double rough2 = pow(10.0, cos(primes[24]*t) - 1.0);
@@ -270,9 +271,11 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     conductorMat1["reflectance"] = Rgba{Float(cos(primes[25]*t)/2 + 0.5), Float(cos(primes[26]*t)/2 + 0.5), Float(cos(primes[27]*t)/2 + 0.5), 1.0f};
     conductorMat1["roughness"]   = Real(rough1);
 
-    auto conductorMat2 = scene.createNode("conductor", "conductorMat2");
-    conductorMat2["reflectance"] = Rgba{Float(0.5 - cos(primes[28]*t)/2), Float(0.5 - cos(primes[29]*t)/2), Float(0.5 - cos(primes[30]*t)/2), 1.0f};
-    conductorMat2["roughness"]   = Real(rough2);
+    auto glassMat = scene.createNode("dielectric", "glassMat");
+    glassMat["ior"]       = Real(1.5);
+    glassMat["roughness"] = Real(rough2);
+    glassMat["depth"]     = Real(10);
+    glassMat["abbe"]      = Real(30);
 
     String blendFile    = String::format("%s_blend_%d", &name, frameNumber);
     String blendHdrPath = String::format("%s/%s.hdr", cwdBuf, blendFile.buf());
@@ -281,20 +284,33 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     else
         logError("Failed to write blend map: %s", blendHdrPath.buf());
 
+    String blendInvFile    = String::format("%s_blendInv_%d", &name, frameNumber);
+    String blendInvHdrPath = String::format("%s/%s.hdr", cwdBuf, blendInvFile.buf());
+    if (writeHDR(blendInvHdrPath.buf(), blendW, blendH, &blendInvRgb[0]))
+        logInfo("Wrote inv blend map: %s", blendInvHdrPath.buf());
+    else
+        logError("Failed to write inv blend map: %s", blendInvHdrPath.buf());
+
     auto blendTex = scene.createNode("fileTexture", "blendTex");
     blendTex["dir"]           = String(cwdBuf);
     blendTex["file"]          = blendFile;
     blendTex["ext"]           = String(".hdr");
     blendTex["interpolation"] = String("bilinear");
 
-    // blendMaterial: conductorMat2 base, conductorMat1 overlay.
+    auto blendInvTex = scene.createNode("fileTexture", "blendInvTex");
+    blendInvTex["dir"]           = String(cwdBuf);
+    blendInvTex["file"]          = blendInvFile;
+    blendInvTex["ext"]           = String(".hdr");
+    blendInvTex["interpolation"] = String("bilinear");
+
+    // blendMaterial: glass base (inverted blend opacity), conductor overlay (blend opacity).
     auto meshMat = scene.createNode("blendMaterial", "meshMaterial");
     meshMat["mixing"] = String("ordered");
     meshMat["materials"].appendElement();
-    meshMat["materials"][0]["material"] = conductorMat2;
-    meshMat["materials"][0]["opacity"]  = Real(0);
+    meshMat["materials"][0]["material"] = std::array{glassMat, conductorMat1}[frameNumber%2];
+    meshMat["materials"][0]["opacity"] |= blendInvTex.output("outAverage");
     meshMat["materials"].appendElement();
-    meshMat["materials"][1]["material"] = conductorMat1;
+    meshMat["materials"][1]["material"] = std::array{conductorMat1, glassMat}[frameNumber%2];
     meshMat["materials"][1]["opacity"] |= blendTex.output("outAverage");
 
     //---------------------------------------------------------------------------------------------

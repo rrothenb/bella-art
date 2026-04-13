@@ -33,7 +33,7 @@ ifeq ($(UNAME), Darwin)
                 -std=c11
 
   CXXFLAGS    = $(CCFLAGS)\
-                -std=c++11
+                -std=c++17
         
   CPPDEFINES  = -DNDEBUG=1\
                 -DDL_USE_SHARED
@@ -78,7 +78,7 @@ else
                 -std=c11
 
   CXXFLAGS    = $(CCFLAGS)\
-                -std=c++11\
+                -std=c++17\
                 -Wno-class-conversion
         
   CPPDEFINES  = -DNDEBUG=1\

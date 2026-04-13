@@ -72,21 +72,36 @@ static Vec3 uv2xyz(Double u, Double v, Double t)
 // Camera and focus paths (series102.go).
 //=================================================================================================
 
-// TODO same side as focusPath and postioned to maximize screen filling maybe?
-// TODO this may be harder to do than I realize
-static Vec3 cameraPath(Double t)
-{
-    return {0.1, 0.1, 1};
-}
-
 static Vec3 focusPath(Double t)
 {
     Double pi      = dl::math::nc::pi;
     return uv2xyz((sin(primes[17]*t)+1)*pi,(sin(primes[18]*t)+1)*pi,t);
 }
 
-// TODO maybe add focus distance which is closer (or farther?) than the center of the image?
-// TODO basically some way to set the focal point of the image elsewhere (1/3, 2/3?)
+// Compute the midpoint of the active knot arc for this frame.
+static Vec3 knotArcCenter(Double t)
+{
+    Double pi   = dl::math::nc::pi;
+    Double minV = sin(primes[7]*t) * pi/2 + pi/2;
+    Double maxV = minV + sin(primes[8]*t) * pi/4 + pi/2;
+    return knot((minV + maxV) / 2.0);
+}
+
+// Place camera along the ray from knot arc center through focus point,
+// close enough that the tube's local cross-section fills the frame.
+static Vec3 cameraPosition(Double t, Double fovRad, Vec3 focusPoint, Double tubeRadius)
+{
+    Vec3   arcCenter = knotArcCenter(t);
+    Vec3   dir       = focusPoint - arcCenter;
+    Double dirLen    = dir.norm();
+    if (dirLen < 1e-10) dir = Vec3{0, 0, 1};
+    else                dir = dir * (1.0 / dirLen);
+
+    // Distance from focus point where the tube cross-section fills the FOV.
+    Double camDist = tubeRadius / tan(fovRad / 2.0) * .5;
+
+    return focusPoint + dir * camDist;
+}
 //=================================================================================================
 // Main rendering function.
 //=================================================================================================
@@ -97,8 +112,40 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     Double t = Double(frameNumber) * dt;
     s_globalT = t;
 
-    Vec3 cameraLoc  = cameraPath(t);
     Vec3 focusPoint = focusPath(t);
+
+    //---------------------------------------------------------------------------------------------
+    // Camera lens parameters — computed early for camera placement and CoC weighting.
+    // Narrow/telephoto FOV for extreme close-up: magnifies surface detail, no background visible.
+    //---------------------------------------------------------------------------------------------
+    Double fovDeg     = 20.0 + 10 * sin(primes[19] * t);
+    Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
+    Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
+    Double fStop      = 16 * pow(4, sin(primes[20] * t));
+    Double pixelMm    = 24.0 / 2400.0;  // sensor size / resolution
+
+    //---------------------------------------------------------------------------------------------
+    // Max tube cross-section: scan across v values, measuring the diameter at each by
+    // sampling opposite u points.  Use the maximum so the camera distance is consistent
+    // regardless of whether the focus point is at a narrow end or the fat midsection.
+    //---------------------------------------------------------------------------------------------
+    Double pi         = dl::math::nc::pi;
+    Double tubeRadius = 1e-3;
+    const Int diamN   = 200;
+    for (Int vi = 0; vi < diamN; ++vi)
+    {
+        Double v  = index2radians(Double(vi), diamN);
+        Vec3   p0 = uv2xyz(0,  v, t);
+        Vec3   p1 = uv2xyz(pi, v, t);
+        Double r  = (p0 - p1).norm() / 2.0;
+        tubeRadius = max(tubeRadius, r);
+    }
+
+    //---------------------------------------------------------------------------------------------
+    // Camera placement — along the ray from knot arc center through focus point,
+    // close enough that the tube cross-section fills the frame.
+    //---------------------------------------------------------------------------------------------
+    Vec3 cameraLoc = cameraPosition(t, fovRad, focusPoint, tubeRadius);
 
     SLR2 cam;
     cam.moveTo(cameraLoc);
@@ -111,15 +158,6 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
             cameraLoc.x, cameraLoc.y, cameraLoc.z,
             focusPoint.x, focusPoint.y, focusPoint.z,
             distance, t);
-
-    //---------------------------------------------------------------------------------------------
-    // Camera lens parameters — computed early so the coarse pass can use CoC weighting.
-    //---------------------------------------------------------------------------------------------
-    Double fovDeg     = 20.0 + 10 * sin(primes[19] * t);
-    Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
-    Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
-    Double fStop      = 16 * pow(4, sin(primes[20] * t));
-    Double pixelMm    = 24.0 / 2400.0;  // sensor size / resolution
 
     //---------------------------------------------------------------------------------------------
     // Coarse pass: 500×500 sample grid.

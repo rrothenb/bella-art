@@ -262,20 +262,25 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     }
 
     //---------------------------------------------------------------------------------------------
-    // Materials — conductor + glass blended via texture.
+    // Materials — conductor, glass, and diffuse blended via texture.
     //---------------------------------------------------------------------------------------------
     Double rough1 = pow(10.0, sin(primes[23]*t) - 1.0);
     Double rough2 = pow(10.0, cos(primes[24]*t) - 1.0);
 
-    auto conductorMat1 = scene.createNode("conductor", "conductorMat1");
-    conductorMat1["reflectance"] = Rgba{Float(cos(primes[25]*t)/2 + 0.5), Float(cos(primes[26]*t)/2 + 0.5), Float(cos(primes[27]*t)/2 + 0.5), 1.0f};
-    conductorMat1["roughness"]   = Real(rough1);
+    Rgba metalColor{Float(cos(primes[25]*t)/2 + 0.5), Float(cos(primes[26]*t)/2 + 0.5), Float(cos(primes[27]*t)/2 + 0.5), 1.0f};
+
+    auto conductorMat = scene.createNode("conductor", "conductorMat");
+    conductorMat["reflectance"] = metalColor;
+    conductorMat["roughness"]   = Real(rough1);
 
     auto glassMat = scene.createNode("dielectric", "glassMat");
     glassMat["ior"]       = Real(1.5);
     glassMat["roughness"] = Real(rough2);
     glassMat["depth"]     = Real(10);
     glassMat["abbe"]      = Real(30);
+
+    auto diffuseMat = scene.createNode("orenNayar", "diffuseMat");
+    diffuseMat["reflectance"] = metalColor;
 
     String blendFile    = String::format("%s_blend_%d", &name, frameNumber);
     String blendHdrPath = String::format("%s/%s.hdr", cwdBuf, blendFile.buf());
@@ -303,14 +308,19 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     blendInvTex["ext"]           = String(".hdr");
     blendInvTex["interpolation"] = String("bilinear");
 
-    // blendMaterial: glass base (inverted blend opacity), conductor overlay (blend opacity).
+    // blendMaterial: cycle through all 6 permutations of 3 materials (2 at a time).
+    auto mats = std::array{conductorMat, glassMat, diffuseMat};
+    Int  perm = frameNumber % 6;
+    auto mat0 = mats[std::array{0,0,1,1,2,2}[perm]];
+    auto mat1 = mats[std::array{1,2,0,2,0,1}[perm]];
+
     auto meshMat = scene.createNode("blendMaterial", "meshMaterial");
     meshMat["mixing"] = String("ordered");
     meshMat["materials"].appendElement();
-    meshMat["materials"][0]["material"] = std::array{glassMat, conductorMat1}[frameNumber%2];
+    meshMat["materials"][0]["material"] = mat0;
     meshMat["materials"][0]["opacity"] |= blendInvTex.output("outAverage");
     meshMat["materials"].appendElement();
-    meshMat["materials"][1]["material"] = std::array{conductorMat1, glassMat}[frameNumber%2];
+    meshMat["materials"][1]["material"] = mat1;
     meshMat["materials"][1]["opacity"] |= blendTex.output("outAverage");
 
     //---------------------------------------------------------------------------------------------

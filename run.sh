@@ -9,4 +9,4 @@ rm series$1_frame_$2.bsi
 rm series$1_*_$2.hdr
 convert series$1_frame_$2.png -auto-gamma series$1_frame_$2.jpg
 rm series$1_frame_$2.png
-mv series$1_mesh_$2.obj /tmp
+rm series$1_mesh_$2.obj

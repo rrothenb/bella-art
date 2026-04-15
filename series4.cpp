@@ -20,7 +20,7 @@ static Double s_globalT = 0.0;
 
 static Double strength(Double x)
 {
-    return sin(x) * 1.25 + 1.25;
+    return sin(x) * 1.5 + 1.5;
 }
 
 //=================================================================================================
@@ -31,7 +31,7 @@ static Double strength(Double x)
 
 static Vec3 knot(Double t)
 {
-    return torusKnot(t, 1.0, 0.75 + sin(primes[0] * s_globalT) * 0.05, 3, 2, circle);
+    return torusKnot(t, 1.0, 0.75 + sin(primes[3] * s_globalT) * 0.2, 3, 2, circle);
 }
 
 //=================================================================================================
@@ -43,10 +43,10 @@ static Double texture(Double u, Double v, Double t)
     Double vs = v * 10.0;
     return sin(
         3*u + 5*vs
-        + strength(1.7 + primes[1]*t) * sin(2*u  + strength(0.7 + primes[5]*t) * sin(3*u  + strength(0.3 + 3*t) * sin(5*u  - 7*vs) * sin(11*u + 3*vs)))
-        + strength(1.5 + primes[2]*t) * sin(7*vs + strength(0.5 + primes[6]*t) * sin(5*vs + strength(0.1 + 2*t) * sin(7*u  - 11*vs) * sin(13*u + 5*vs)))
-        + strength(1.3 + primes[3]*t) * sin(5*u + 7*vs)
-        + strength(1.1 + primes[4]*t) * sin(17*u) * sin(19*vs)
+        + strength(1.7 + primes[4]*t) * sin(2*u  + strength(0.7 + primes[5]*t) * sin(3*u  + strength(0.3 + primes[10]*t) * sin(5*u  - 7*vs) * sin(11*u + 3*vs)))
+        + strength(1.5 + primes[6]*t) * sin(7*vs + strength(0.5 + primes[7]*t) * sin(5*vs + strength(0.1 + primes[11]*t) * sin(7*u  - 11*vs) * sin(13*u + 5*vs)))
+        + strength(1.3 + primes[8]*t) * sin(5*u + 7*vs)
+        + strength(1.1 + primes[9]*t) * sin(17*u) * sin(19*vs)
     );
 }
 
@@ -56,15 +56,15 @@ static Double texture(Double u, Double v, Double t)
 static Vec3 uv2xyz(Double u, Double v, Double t)
 {
     Double pi      = dl::math::nc::pi;
-    Double minV    = sin(primes[7]*t) * pi/2 + pi/2;
-    Double maxV    = minV + sin(primes[8]*t) * pi/4 + pi/2;
+    Double minV    = sin(primes[12]*t) * pi/2 + pi/2;
+    Double maxV    = minV + sin(primes[13]*t) * pi/4 + pi/2;
     Double limitedV = minV + v / 2 / pi * (maxV - minV);
-    Double ridges  = 20 + sin(primes[9]*t) * 15;
-    Double a       = 1 - spow(cos(floor(ridges) * v), pow(10, -cos(primes[10]*t))) * 0.5;
-    Double bv      = pow(spow(texture(u, v, t), pow(2, cos(primes[11]*t))) / 2 + 0.5,
-                         pow(2, cos(primes[12]*t))) * sin(primes[13]*t);
-    Double rParam  = 0.25 * spow(sin(v/2), pow(10, sin(primes[14]*t))) * a * (1 + 0.1 * bv);
-    Double vParam  = limitedV + pow(a - 0.5, pow(10, sin(primes[15]*t))) / (15 + sin(primes[16]*t) * 5);
+    Double ridges  = 20 + sin(primes[14]*t) * 15;
+    Double a       = 1 - spow(cos(floor(ridges) * v), pow(10, -cos(primes[15]*t))) * 0.5;
+    Double bv      = pow(spow(texture(u, v, t), pow(2, cos(primes[16]*t))) / 2 + 0.5,
+                         pow(2, cos(primes[17]*t))) * sin(primes[18]*t);
+    Double rParam  = 0.25 * spow(sin(v/2), pow(10, sin(primes[19]*t))) * a * (1 + 0.1 * bv);
+    Double vParam  = limitedV + pow(a - 0.5, pow(10, sin(primes[20]*t))) / (15 + sin(primes[21]*t) * 5);
     return pathWrapper(u, vParam, rParam, knot);
 }
 
@@ -75,15 +75,15 @@ static Vec3 uv2xyz(Double u, Double v, Double t)
 static Vec3 focusPath(Double t)
 {
     Double pi      = dl::math::nc::pi;
-    return uv2xyz((sin(primes[17]*t)+1)*pi,(sin(primes[18]*t)+1)*pi,t);
+    return uv2xyz((sin(primes[22]*t)+1)*pi,(sin(primes[23]*t)+1)*pi,t);
 }
 
 // Compute the midpoint of the active knot arc for this frame.
 static Vec3 knotArcCenter(Double t)
 {
     Double pi   = dl::math::nc::pi;
-    Double minV = sin(primes[7]*t) * pi/2 + pi/2;
-    Double maxV = minV + sin(primes[8]*t) * pi/4 + pi/2;
+    Double minV = sin(primes[12]*t) * pi/2 + pi/2;
+    Double maxV = minV + sin(primes[13]*t) * pi/4 + pi/2;
     return knot((minV + maxV) / 2.0);
 }
 
@@ -118,10 +118,10 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     // Camera lens parameters — computed early for camera placement and CoC weighting.
     // Narrow/telephoto FOV for extreme close-up: magnifies surface detail, no background visible.
     //---------------------------------------------------------------------------------------------
-    Double fovDeg     = 20.0 + 10 * sin(primes[19] * t);
+    Double fovDeg     = 20.0 + 10 * sin(primes[24] * t);
     Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
-    Double fStop      = 16 * pow(4, sin(primes[20] * t));
+    Double fStop      = 32 * pow(4, sin(primes[25] * t));
     Double pixelMm    = 24.0 / 2400.0;  // sensor size / resolution
 
     //---------------------------------------------------------------------------------------------
@@ -232,8 +232,8 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
         {
             Double u  = uBreaks[ui];
             Double v  = vBreaks[vi];
-            Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(primes[21]*t))) / 2.0 + 0.5,
-                                  pow(4, cos(primes[22]*t)));
+            Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(primes[26]*t))) / 2.0 + 0.5,
+                                  pow(4, cos(primes[27]*t)));
             float bvf    = 100*Float(bv);
             float bvfInv = 100 - bvf;
             blendRgb.push_back(bvf);    blendRgb.push_back(bvf);    blendRgb.push_back(bvf);
@@ -264,23 +264,35 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     //---------------------------------------------------------------------------------------------
     // Materials — conductor, glass, and diffuse blended via texture.
     //---------------------------------------------------------------------------------------------
-    Double rough1 = pow(10.0, sin(primes[23]*t) - 1.0);
-    Double rough2 = pow(10.0, cos(primes[24]*t) - 1.0);
+    Double rough1 = pow(100.0, sin(primes[28]*t));
+    Double rough2 = pow(100.0, cos(primes[29]*t));
+    Double anisotropy1   = pow(100.0, sin(primes[30]*t));
+    Double anisotropy2   = pow(100.0, sin(primes[31]*t));
 
-    Rgba metalColor{Float(cos(primes[25]*t)/2 + 0.5), Float(cos(primes[26]*t)/2 + 0.5), Float(cos(primes[27]*t)/2 + 0.5), 1.0f};
+    Rgba metalColor{Float(cos(primes[32]*t)/2 + 0.5), Float(cos(primes[33]*t)/2 + 0.5), Float(cos(primes[34]*t)/2 + 0.5), 1.0f};
 
     auto conductorMat = scene.createNode("conductor", "conductorMat");
     conductorMat["reflectance"] = metalColor;
     conductorMat["roughness"]   = Real(rough1);
+    conductorMat["anisotropy"]   = Real(anisotropy1);
+
+    auto glassScattering = scene.createNode("scattering", "meshScattering");
+    glassScattering["albedo"]     = Real(pow(100.0, sin(primes[35]*t) - 1));
+    glassScattering["anisotropy"] = Real(pow(100.0, sin(primes[36]*t)));
+    glassScattering["color"]      = Rgba{1.0f, 1.0f, 1.0f, 1.0f};
 
     auto glassMat = scene.createNode("dielectric", "glassMat");
-    glassMat["ior"]       = Real(1.5);
+    glassMat["ior"]       = Real(1.5+.4*sin(primes[37]*t));
     glassMat["roughness"] = Real(rough2);
-    glassMat["depth"]     = Real(10);
-    glassMat["abbe"]      = Real(30);
+    glassMat["depth"]     = Real(100);
+    glassMat["abbe"]      = Real(30+20*sin(primes[38]*t));
+    glassMat["anisotropy"] = Real(anisotropy2);
+    glassMat["dispersion"] = true;
+    glassMat["scattering"] = glassScattering;
 
     auto diffuseMat = scene.createNode("orenNayar", "diffuseMat");
     diffuseMat["reflectance"] = metalColor;
+    diffuseMat["gd"] = rough2;
 
     String blendFile    = String::format("%s_blend_%d", &name, frameNumber);
     String blendHdrPath = String::format("%s/%s.hdr", cwdBuf, blendFile.buf());
@@ -411,9 +423,9 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
 
     // Animated 3-axis rotation matching Mitsuba's sequential X→Y→Z extrinsic rotations.
     {
-        Double ax = sin(primes[31]*t) * 45.0 * dl::math::nc::pi / 180.0;
-        Double ay = sin(primes[32]*t) * 45.0 * dl::math::nc::pi / 180.0;
-        Double az = sin(primes[33]*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double ax = sin(primes[39]*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double ay = sin(primes[40]*t) * 45.0 * dl::math::nc::pi / 180.0;
+        Double az = sin(primes[41]*t) * 45.0 * dl::math::nc::pi / 180.0;
         Double cx = cos(ax), sx = sin(ax);
         Double cy = cos(ay), sy = sin(ay);
         Double cz = cos(az), sz = sin(az);

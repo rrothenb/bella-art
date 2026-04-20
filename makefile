@@ -34,7 +34,7 @@ ifeq ($(UNAME), Darwin)
 
   CXXFLAGS    = $(CCFLAGS)\
                 -std=c++17
-        
+
   CPPDEFINES  = -DNDEBUG=1\
                 -DDL_USE_SHARED
 
@@ -80,7 +80,7 @@ else
   CXXFLAGS    = $(CCFLAGS)\
                 -std=c++17\
                 -Wno-class-conversion
-        
+
   CPPDEFINES  = -DNDEBUG=1\
                 -DDL_USE_SHARED
 
@@ -99,140 +99,47 @@ else
                 -Wl,-rpath-link=./lib
 endif
 
-OBJS = main.o
-OBJ = $(patsubst %,$(OBJDIR)/%,$(OBJS))
+# Add new series numbers here — one entry per series
+SERIES = 1 2 3 4 5
 
-SERIES1_OBJS = series1.o
-SERIES1_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES1_OBJS))
-SERIES1_OUTPUT = $(BINDIR)/series1
-
-SERIES2_OBJS = series2.o
-SERIES2_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES2_OBJS))
-SERIES2_OUTPUT = $(BINDIR)/series2
-
-SERIES3_OBJS = series3.o
-SERIES3_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES3_OBJS))
-SERIES3_OUTPUT = $(BINDIR)/series3
-
-SERIES4_OBJS = series4.o
-SERIES4_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES4_OBJS))
-SERIES4_OUTPUT = $(BINDIR)/series4
-
-SERIES5_OBJS = series5.o
-SERIES5_OBJ = $(patsubst %,$(OBJDIR)/%,$(SERIES5_OBJS))
-SERIES5_OUTPUT = $(BINDIR)/series5
-
-CREATE_SIMPLE_OBJS = create_simple.o
-CREATE_SIMPLE_OBJ = $(patsubst %,$(OBJDIR)/%,$(CREATE_SIMPLE_OBJS))
+SERIES_OUTPUTS       = $(addprefix $(BINDIR)/series, $(SERIES))
 CREATE_SIMPLE_OUTPUT = $(BINDIR)/create_simple
-
-TEST_BSA_OBJS = test_bsa_files.o
-TEST_BSA_OBJ = $(patsubst %,$(OBJDIR)/%,$(TEST_BSA_OBJS))
-TEST_BSA_OUTPUT = $(BINDIR)/test_bsa_files
-
-TEST_SURFACE_OBJS = test_surface_bsa.o
-TEST_SURFACE_OBJ = $(patsubst %,$(OBJDIR)/%,$(TEST_SURFACE_OBJS))
-TEST_SURFACE_OUTPUT = $(BINDIR)/test_surface_bsa
+TEST_BSA_OUTPUT      = $(BINDIR)/test_bsa_files
+TEST_SURFACE_OUTPUT  = $(BINDIR)/test_surface_bsa
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) -c -o $@ $< $(CXXFLAGS) $(CPPDEFINES)
 
-$(OUTPUT): $(OBJ)
+# Generic link rule — covers all series and other single-source binaries
+$(BINDIR)/%: $(OBJDIR)/%.o
 	@mkdir -p $(@D)
 	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
 	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
 	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
 	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
 
-$(SERIES1_OUTPUT): $(SERIES1_OBJ)
+# console binary has a different name than its source (main.cpp)
+$(OUTPUT): $(OBJDIR)/main.o
 	@mkdir -p $(@D)
 	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
 	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
 	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
 	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
 
-$(SERIES2_OUTPUT): $(SERIES2_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
+.PHONY: clean $(addprefix series, $(SERIES)) create_simple test_bsa test_surface
 
-$(SERIES3_OUTPUT): $(SERIES3_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-$(SERIES4_OUTPUT): $(SERIES4_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-$(SERIES5_OUTPUT): $(SERIES5_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-$(CREATE_SIMPLE_OUTPUT): $(CREATE_SIMPLE_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-$(TEST_BSA_OUTPUT): $(TEST_BSA_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-$(TEST_SURFACE_OUTPUT): $(TEST_SURFACE_OBJ)
-	@mkdir -p $(@D)
-	$(CXX) -o $@ $^ $(LINKFLAGS) $(LIBDIRS) $(LIBS)
-	@cp $(LIBDIR)/$(SDKFNAME) $(BINDIR)/$(SDKFNAME)
-	@cp $(LIBDIR)/$(USDFNAME) $(BINDIR)/$(USDFNAME)
-	@cp -r $(LIBDIR)/usd $(BINDIR)/usd
-
-.PHONY: clean
 clean:
 	rm -f $(OBJDIR)/*.o
-	rm -f $(OUTPUT)
-	rm -f $(SERIES1_OUTPUT)
-	rm -f $(SERIES2_OUTPUT)
-	rm -f $(SERIES3_OUTPUT)
-	rm -f $(SERIES4_OUTPUT)
-	rm -f $(SERIES5_OUTPUT)
-	rm -f $(CREATE_SIMPLE_OUTPUT)
-	rm -f $(TEST_BSA_OUTPUT)
+	rm -f $(OUTPUT) $(SERIES_OUTPUTS) $(CREATE_SIMPLE_OUTPUT) $(TEST_BSA_OUTPUT) $(TEST_SURFACE_OUTPUT)
 	rm -f $(BINDIR)/$(SDKFNAME)
 	rm -f $(BINDIR)/$(USDFNAME)
 	rm -rf $(BINDIR)/usd
 
-.PHONY: series1
-series1: $(SERIES1_OUTPUT)
+$(addprefix series, $(SERIES)): series%: $(BINDIR)/series%
 
-.PHONY: series2
-series2: $(SERIES2_OUTPUT)
-
-.PHONY: series3
-series3: $(SERIES3_OUTPUT)
-
-.PHONY: series5
-series5: $(SERIES5_OUTPUT)
-
-.PHONY: create_simple
 create_simple: $(CREATE_SIMPLE_OUTPUT)
 
-.PHONY: test_bsa
 test_bsa: $(TEST_BSA_OUTPUT)
 
-.PHONY: test_surface
 test_surface: $(TEST_SURFACE_OUTPUT)

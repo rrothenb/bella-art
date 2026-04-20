@@ -40,12 +40,19 @@ static Double texture(Double u, Double v, Double t)
     );
 }
 
-// Tube surface wrapped around knot.
-// limitedV restricts the tube to an animated arc of the knot path.
-// TODO refactor so I can do this for both the location of the point on the surface and the location of the center of the tube
+static double shaper(double x, double a, double b)
+{
+    return spow(pow(x/2 + .5, a)*2 - 1, b);
+}
+
+static double blendValue(double u, double v, double t)
+{
+    return shaper(texture(u, v, t), pow(4, sin(71*t)), pow(2, cos(73*t)) - 1) / 2 + .5;
+}
+
 static Vec3 uv2xyz(Double u, Double v, Double t)
 {
-    return cube(u, v, .25*sin(primes[2]*t)+.05*texture(u,v,t));
+    return cube(u, v, .25*sin(primes[2]*t))*(1+.05*shaper(texture(u, v, t), pow(2, sin(31*t)), pow(3, sin(37*t) - 1)));
 }
 
 //=================================================================================================
@@ -54,7 +61,7 @@ static Vec3 uv2xyz(Double u, Double v, Double t)
 
 static Vec3 focusPath(Double t)
 {
-    return uv2xyz((sin(primes[0]*t))*pi*.25,(sin(primes[1]*t))*pi*.25,t);
+    return uv2xyz((sin(primes[0]*t))*pi*.5,pi+(sin(primes[1]*t))*pi*.5, t);
 }
 
 
@@ -63,7 +70,7 @@ static Vec3 focusPath(Double t)
 static Vec3 cameraPosition(Double t, Double fovRad, Vec3 focusPoint, Double tubeRadius)
 {
 
-    return {0,0,2};
+    return {1.25,0,0};
 }
 //=================================================================================================
 // Main rendering function.
@@ -81,7 +88,7 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     // Camera lens parameters — computed early for camera placement and CoC weighting.
     // Narrow/telephoto FOV for extreme close-up: magnifies surface detail, no background visible.
     //---------------------------------------------------------------------------------------------
-    Double fovDeg     = 20.0 + 10 * sin(primes[24] * t);
+    Double fovDeg     = 90;
     Double fovRad     = fovDeg * dl::math::nc::pi / 180.0;
     Double focalLenMm = (24.0 / 2.0) / tan(fovRad / 2.0);
     Double fStop      = 32 * pow(4, sin(primes[25] * t));
@@ -184,19 +191,18 @@ static void renderSurfaces(Scene& scene, Int frameNumber, Int /*pixels*/, Int /*
     char cwdBuf[1024];
     getcwd(cwdBuf, sizeof(cwdBuf));
 
-    Int blendW = max(Int(1), nU - 1);
-    Int blendH = max(Int(1), nV - 1);
+    Int blendW = max(Int(1), nU);
+    Int blendH = max(Int(1), nV);
 
     ds::Vector<float> blendRgb;
     ds::Vector<float> blendInvRgb;
-    for (Int vi = 0; vi < nV - 1; ++vi)
+    for (Int vi = 0; vi < nV; ++vi)
     {
-        for (Int ui = 0; ui < nU - 1; ++ui)
+        for (Int ui = 0; ui < nU; ++ui)
         {
             Double u  = uBreaks[ui];
             Double v  = vBreaks[vi];
-            Double bv = 1.0 - pow(spow(texture(u, v, t), pow(2, cos(primes[26]*t))) / 2.0 + 0.5,
-                                  pow(4, cos(primes[27]*t)));
+            Double bv = blendValue(u, v, t);
             float bvf    = 100*Float(bv);
             float bvfInv = 100 - bvf;
             blendRgb.push_back(bvf);    blendRgb.push_back(bvf);    blendRgb.push_back(bvf);

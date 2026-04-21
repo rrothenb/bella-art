@@ -109,7 +109,9 @@ TEST_SURFACE_OUTPUT  = $(BINDIR)/test_surface_bsa
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
-	$(CXX) -c -o $@ $< $(CXXFLAGS) $(CPPDEFINES)
+	$(CXX) -c -o $@ $< $(CXXFLAGS) $(CPPDEFINES) -MMD -MP
+
+-include $(wildcard $(OBJDIR)/*.d)
 
 # Generic link rule — covers all series and other single-source binaries
 $(BINDIR)/%: $(OBJDIR)/%.o

@@ -4,12 +4,12 @@
 // NOTE: using-directives in headers are acceptable for application-level executables like these.
 #pragma once
 
-#include "bella_sdk/bella_scene.h"
-#include "dl_core/dl_math.h"
-#include "dl_core/dl_string.h"
-#include "dl_core/dl_file.h"
-#include "dl_core/dl_args.h"
-#include "dl_core/dl_vector.h"
+#include "src/bella_sdk/bella_scene.h"
+#include "src/dl_core/dl_math.h"
+#include "src/dl_core/dl_string.h"
+#include "src/dl_core/dl_file.h"
+#include "src/dl_core/dl_args.h"
+#include "src/dl_core/dl_vector.h"
 
 #include <cstdio>
 #include <cmath>

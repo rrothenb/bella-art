@@ -422,7 +422,7 @@ static void renderSurfaces(Scene &scene, Int frameNumber, Int /*pixels*/, Int /*
 // Main entry point.
 //=================================================================================================
 
-#include "dl_core/dl_main.inl"
+#include "src/dl_core/dl_main.inl"
 
 int DL_main(Args &args) {
     subscribeLog(&s_logCtx, log);
